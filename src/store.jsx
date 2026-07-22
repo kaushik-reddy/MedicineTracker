@@ -271,7 +271,7 @@ export function AppProvider({ children }) {
   }, [])
 
   const markTaken = useCallback(
-    (id) => {
+    (id, markedTime) => {
       let acted = null
       setMedications((meds) =>
         meds.map((m) => {
@@ -281,8 +281,11 @@ export function AppProvider({ children }) {
         }),
       )
       if (acted) {
+        // Use the caller-supplied time if they took it earlier and are logging it
+        // late; otherwise stamp the current time.
+        const marked = (markedTime || '').trim() || istTimeLabel()
         db.updateMedication(acted.id, { taken: true, skipped: false })
-        pushHistory({ ts: Date.now(), day: 'Today', date: `Today, ${acted.time}`, scheduled: acted.time, marked: istTimeLabel(), name: acted.name, dose: acted.dosage, status: 'Taken', tone: acted.tone, user: acted.user })
+        pushHistory({ ts: Date.now(), day: 'Today', date: `Today, ${acted.time}`, scheduled: acted.time, marked, name: acted.name, dose: acted.dosage, status: 'Taken', tone: acted.tone, user: acted.user })
         showToast(`${userName(acted.user)} took ${acted.name}`, 'brand')
       }
     },

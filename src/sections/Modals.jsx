@@ -24,7 +24,7 @@ import {
 } from '../icons.jsx'
 import { PillGlyph, MedGlyph, UserAvatar } from '../ui.jsx'
 import { ScheduleTimeline, Calendar } from './ScheduleView.jsx'
-import { useNow, istCalendarDate, sameDay, addDays, formatLongDate, medActiveOn } from '../time.js'
+import { useNow, istCalendarDate, sameDay, addDays, formatLongDate, medActiveOn, istTimeLabel } from '../time.js'
 import { DEFAULT_MED_INFO } from '../data.js'
 
 const field =
@@ -699,6 +699,8 @@ function TimeChip({ caption, time, muted }) {
 
 function ConfirmDose() {
   const { confirm, medications, markTaken, skipDose, rescheduleDose, snoozeDoseTo, removeFromSchedule, closeModal } = useApp()
+  const [takenMode, setTakenMode] = useState('now') // 'now' | 'custom'
+  const [takenTime, setTakenTime] = useState(() => istTimeLabel())
   if (!confirm) return null
   const med = medications.find((m) => m.id === confirm.medId)
   if (!med) return null
@@ -707,7 +709,7 @@ function ConfirmDose() {
   const changesTime = confirm.kind === 'snooze' || confirm.kind === 'move'
 
   const apply = () => {
-    if (confirm.kind === 'taken') markTaken(med.id)
+    if (confirm.kind === 'taken') markTaken(med.id, takenMode === 'custom' ? takenTime : undefined)
     else if (confirm.kind === 'skip') skipDose(med.id)
     else if (confirm.kind === 'move') rescheduleDose(med.id, confirm.toTime)
     else if (confirm.kind === 'snooze') snoozeDoseTo(med.id, confirm.toTime, confirm.mins)
@@ -744,6 +746,42 @@ function ConfirmDose() {
               Marking <span className="font-bold text-ink-900">{med.name}</span> scheduled at{' '}
               <span className="font-bold text-ink-900">{confirm.fromTime}</span> as{' '}
               <span className="font-bold text-brand-600">taken</span>.
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setTakenMode('now')}
+                  className={
+                    'rounded-xl border py-2 text-[12px] font-bold transition-colors ' +
+                    (takenMode === 'now' ? chipOn : chipOff)
+                  }
+                >
+                  Taken now
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTakenMode('custom')}
+                  className={
+                    'rounded-xl border py-2 text-[12px] font-bold transition-colors ' +
+                    (takenMode === 'custom' ? chipOn : chipOff)
+                  }
+                >
+                  Different time
+                </button>
+              </div>
+              {takenMode === 'custom' && (
+                <div className="mt-2.5">
+                  <div className={label}>Time taken (IST)</div>
+                  <input
+                    className={field + ' mt-1'}
+                    value={takenTime}
+                    onChange={(e) => setTakenTime(e.target.value)}
+                    placeholder="e.g. 08:05 AM"
+                  />
+                  <p className="mt-1 text-[11px] text-ink-400">
+                    Use this if you took it earlier and forgot to mark it — it won't be counted as late.
+                  </p>
+                </div>
+              )}
             </>
           ) : confirm.kind === 'unschedule' ? (
             <>
