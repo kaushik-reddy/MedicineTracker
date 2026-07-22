@@ -137,7 +137,7 @@ function AddMedication() {
     time: '08:00 AM',
     tone: 'brand',
     image: null,
-    user: 'kr',
+    user: users[0]?.id ?? '',
   })
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }))
   const valid = form.name.trim() && form.dosage.trim()

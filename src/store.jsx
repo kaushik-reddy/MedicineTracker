@@ -1,12 +1,18 @@
-import { createContext, useContext, useState, useCallback, useMemo, useRef } from 'react'
+import { createContext, useContext, useState, useCallback, useMemo, useRef, useEffect } from 'react'
 import { medications as medsSeed, inventory as invSeed, history as histSeed, users as usersSeed } from './data.js'
 import { timeAfterNow, istTimeLabel } from './time.js'
+import { db, loadAll, hasSupabase } from './supabase.js'
+
+// Stable id generator (valid UUID so it matches the Supabase uuid columns).
+const newId = () =>
+  typeof crypto !== 'undefined' && crypto.randomUUID
+    ? crypto.randomUUID()
+    : `id-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`
 
 const AppCtx = createContext(null)
 export const useApp = () => useContext(AppCtx)
 
 let toastSeq = 0
-let medSeq = 0
 
 function parseMins(t) {
   const m = String(t).match(/(\d+):(\d+)\s*(AM|PM)/i)
@@ -34,6 +40,20 @@ export function AppProvider({ children }) {
   const usersRef = useRef(usersById)
   usersRef.current = usersById
   const userName = (id) => (usersRef.current[id] ? usersRef.current[id].name : '')
+
+  // Hydrate from Supabase on first load (no-op when persistence is not configured).
+  const hydrated = useRef(false)
+  useEffect(() => {
+    if (!hasSupabase || hydrated.current) return
+    hydrated.current = true
+    loadAll().then((data) => {
+      if (!data) return
+      setUsers(data.users)
+      setMedications(data.medications)
+      setInventory(data.inventory)
+      setHistory(data.history)
+    })
+  }, [])
 
   // A "notice" is a transient event surfaced by the header bell (expand/collapse).
   const showToast = useCallback((message, tone = 'brand') => {
@@ -72,9 +92,10 @@ export function AppProvider({ children }) {
     ({ name, tone }) => {
       const clean = (name || '').trim()
       if (!clean) return
-      const id = `u${Date.now().toString(36)}`
+      const id = newId()
       const u = { id, name: clean, full: `${clean}`, initials: clean[0].toUpperCase(), tone: tone || 'brand' }
       setUsers((list) => [...list, u])
+      db.upsertMember(u)
       showToast(`${clean} added as a member`, 'brand')
     },
     [showToast],
@@ -87,13 +108,22 @@ export function AppProvider({ children }) {
       setInventory((inv) => inv.filter((it) => it.user !== id))
       setHistory((h) => h.filter((e) => e.user !== id))
       setUsers((list) => list.filter((x) => x.id !== id))
+      db.deleteMember(id)
       if (u) showToast(`${u.name} and all their data removed`, 'warn')
     },
     [showToast],
   )
 
   const setUserImage = useCallback((id, image) => {
-    setUsers((list) => list.map((u) => (u.id === id ? { ...u, image } : u)))
+    let next = null
+    setUsers((list) =>
+      list.map((u) => {
+        if (u.id !== id) return u
+        next = { ...u, image }
+        return next
+      }),
+    )
+    if (next) db.upsertMember(next)
   }, [])
 
   // ---- Derived state: everything below stays in sync with `medications` ----
@@ -136,7 +166,9 @@ export function AppProvider({ children }) {
 
   // ---- Actions ----
   const pushHistory = useCallback((entry) => {
-    setHistory((h) => [entry, ...h].slice(0, 600))
+    const withId = { id: entry.id || newId(), ...entry }
+    setHistory((h) => [withId, ...h].slice(0, 600))
+    db.insertDoseLog(withId)
   }, [])
 
   const markTaken = useCallback(
@@ -150,6 +182,7 @@ export function AppProvider({ children }) {
         }),
       )
       if (acted) {
+        db.updateMedication(acted.id, { taken: true, skipped: false })
         pushHistory({ ts: Date.now(), day: 'Today', date: `Today, ${acted.time}`, scheduled: acted.time, marked: istTimeLabel(), name: acted.name, dose: acted.dosage, status: 'Taken', tone: acted.tone, user: acted.user })
         showToast(`${userName(acted.user)} took ${acted.name}`, 'brand')
       }
@@ -167,7 +200,10 @@ export function AppProvider({ children }) {
           return { ...m, taken: false, skipped: false }
         }),
       )
-      if (acted) showToast(`${acted.name} reverted to upcoming`, 'accent')
+      if (acted) {
+        db.updateMedication(acted.id, { taken: false, skipped: false })
+        showToast(`${acted.name} reverted to upcoming`, 'accent')
+      }
     },
     [showToast],
   )
@@ -183,6 +219,7 @@ export function AppProvider({ children }) {
         }),
       )
       if (acted) {
+        db.updateMedication(acted.id, { skipped: true, taken: false })
         pushHistory({ ts: Date.now(), day: 'Today', date: `Today, ${acted.time}`, scheduled: acted.time, marked: null, name: acted.name, dose: acted.dosage, status: 'Skipped', tone: 'warn', user: acted.user })
         showToast(`${userName(acted.user)} skipped ${acted.name}`, 'warn')
       }
@@ -200,7 +237,10 @@ export function AppProvider({ children }) {
           return { ...m, time, label: hourLabel(time) }
         }),
       )
-      if (acted) showToast(`${acted.name} rescheduled to ${time}`, 'accent')
+      if (acted) {
+        db.updateMedication(acted.id, { time, label: hourLabel(time) })
+        showToast(`${acted.name} rescheduled to ${time}`, 'accent')
+      }
     },
     [showToast],
   )
@@ -224,7 +264,17 @@ export function AppProvider({ children }) {
           }
         }),
       )
-      if (acted) showToast(`${acted.name} added to schedule`, 'brand')
+      if (acted) {
+        db.updateMedication(acted.id, {
+          time: time || acted.time,
+          label: hourLabel(time || acted.time),
+          frequency: frequency || acted.frequency,
+          scheduled_today: true,
+          taken: false,
+          skipped: false,
+        })
+        showToast(`${acted.name} added to schedule`, 'brand')
+      }
     },
     [showToast],
   )
@@ -239,7 +289,10 @@ export function AppProvider({ children }) {
           return { ...m, scheduledToday: false }
         }),
       )
-      if (acted) showToast(`${acted.name} removed from schedule`, 'warn')
+      if (acted) {
+        db.updateMedication(acted.id, { scheduled_today: false })
+        showToast(`${acted.name} removed from schedule`, 'warn')
+      }
     },
     [showToast],
   )
@@ -255,7 +308,10 @@ export function AppProvider({ children }) {
           return { ...m, time, label: hourLabel(time), taken: false, skipped: false }
         }),
       )
-      if (acted) showToast(`${acted.name} snoozed ${mins} min · now ${time}`, 'warn')
+      if (acted) {
+        db.updateMedication(acted.id, { time, label: hourLabel(time), taken: false, skipped: false })
+        showToast(`${acted.name} snoozed ${mins} min · now ${time}`, 'warn')
+      }
     },
     [showToast],
   )
@@ -271,16 +327,26 @@ export function AppProvider({ children }) {
           return { ...m, time, label: hourLabel(time), taken: false, skipped: false }
         }),
       )
-      if (acted) showToast(`${acted.name} snoozed ${mins} min · now ${time}`, 'warn')
+      if (acted) {
+        db.updateMedication(acted.id, { time, label: hourLabel(time), taken: false, skipped: false })
+        showToast(`${acted.name} snoozed ${mins} min · now ${time}`, 'warn')
+      }
     },
     [showToast],
   )
 
   const restock = useCallback(
     (name, days = 30) => {
+      const changed = []
       setInventory((inv) =>
-        inv.map((it) => (it.name === name ? { ...it, days: it.days + days, pct: 100, tone: 'brand' } : it)),
+        inv.map((it) => {
+          if (it.name !== name) return it
+          const next = { ...it, days: it.days + days, pct: 100, tone: 'brand' }
+          changed.push(next)
+          return next
+        }),
       )
+      db.upsertInventoryMany(changed)
       showToast(`${name} restocked · +${days} units`, 'brand')
     },
     [showToast],
@@ -288,20 +354,38 @@ export function AppProvider({ children }) {
 
   const addMedication = useCallback(
     (med) => {
-      const id = `m${++medSeq}`
-      const uid = med.user || 'kr'
-      setMedications((m) => [...m, { ...med, id, user: uid, label: hourLabel(med.time), taken: false, scheduledToday: true }])
-      setInventory((inv) => [
-        ...inv,
-        { name: med.name, detail: `${med.unit} ${med.frequency.toLowerCase()}`, days: 30, pct: 100, tone: med.tone, user: uid },
-      ])
+      const id = newId()
+      const uid = med.user || null
+      const record = { ...med, id, user: uid, label: hourLabel(med.time), taken: false, scheduledToday: true }
+      const invItem = {
+        id: newId(),
+        medicationId: id,
+        name: med.name,
+        detail: `${med.unit} ${med.frequency.toLowerCase()}`,
+        days: 30,
+        pct: 100,
+        tone: med.tone,
+        user: uid,
+      }
+      setMedications((m) => [...m, record])
+      setInventory((inv) => [...inv, invItem])
+      db.upsertMedication(record)
+      db.upsertInventory(invItem)
       showToast(`${med.name} added for ${userName(uid)}`, 'accent')
     },
     [showToast],
   )
 
   const setMedImage = useCallback((id, image) => {
-    setMedications((meds) => meds.map((m) => (m.id === id ? { ...m, image } : m)))
+    let next = null
+    setMedications((meds) =>
+      meds.map((m) => {
+        if (m.id !== id) return m
+        next = { ...m, image }
+        return next
+      }),
+    )
+    if (next) db.updateMedication(id, { image })
   }, [])
 
   const logDose = useCallback(
