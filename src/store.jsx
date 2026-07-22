@@ -1,7 +1,16 @@
 import { createContext, useContext, useState, useCallback, useMemo, useRef, useEffect } from 'react'
 import { medications as medsSeed, inventory as invSeed, history as histSeed, users as usersSeed } from './data.js'
 import { timeAfterNow, istTimeLabel } from './time.js'
-import { db, loadAll, hasSupabase } from './supabase.js'
+import {
+  db,
+  loadAll,
+  hasSupabase,
+  getSession,
+  onAuthChange,
+  signIn as signInApi,
+  signUp as signUpApi,
+  signOut as signOutApi,
+} from './supabase.js'
 
 // Stable id generator (valid UUID so it matches the Supabase uuid columns).
 const newId = () =>
@@ -35,17 +44,42 @@ export function AppProvider({ children }) {
   const [modal, setModal] = useState(null)
   const [notice, setNotice] = useState(null)
   const [confirm, setConfirm] = useState(null)
+  const [session, setSession] = useState(null)
+  const [authLoading, setAuthLoading] = useState(hasSupabase)
 
   const usersById = useMemo(() => Object.fromEntries(users.map((u) => [u.id, u])), [users])
   const usersRef = useRef(usersById)
   usersRef.current = usersById
   const userName = (id) => (usersRef.current[id] ? usersRef.current[id].name : '')
 
-  // Hydrate from Supabase on first load (no-op when persistence is not configured).
-  const hydrated = useRef(false)
+  // Track the auth session (real email/password login). Data is per-account and
+  // roams across devices. When persistence is off, there is no auth to track.
   useEffect(() => {
-    if (!hasSupabase || hydrated.current) return
-    hydrated.current = true
+    if (!hasSupabase) return
+    let active = true
+    getSession().then((s) => {
+      if (!active) return
+      setSession(s)
+      setAuthLoading(false)
+    })
+    const unsub = onAuthChange((s) => setSession(s))
+    return () => {
+      active = false
+      unsub()
+    }
+  }, [])
+
+  // Load this account's data whenever the signed-in user changes; clear on sign-out.
+  const uid = session?.user?.id
+  useEffect(() => {
+    if (!hasSupabase) return
+    if (!uid) {
+      setUsers([])
+      setMedications([])
+      setInventory([])
+      setHistory([])
+      return
+    }
     loadAll().then((data) => {
       if (!data) return
       setUsers(data.users)
@@ -53,7 +87,7 @@ export function AppProvider({ children }) {
       setInventory(data.inventory)
       setHistory(data.history)
     })
-  }, [])
+  }, [uid])
 
   // A "notice" is a transient event surfaced by the header bell (expand/collapse).
   const showToast = useCallback((message, tone = 'brand') => {
@@ -69,6 +103,37 @@ export function AppProvider({ children }) {
     window.addEventListener('supabase:error', onError)
     return () => window.removeEventListener('supabase:error', onError)
   }, [showToast])
+
+  // ---- Auth actions ----
+  const login = useCallback(
+    async (email, password) => {
+      const { error } = await signInApi(email, password)
+      if (error) {
+        showToast(error.message, 'warn')
+        return false
+      }
+      return true
+    },
+    [showToast],
+  )
+
+  const register = useCallback(
+    async (email, password) => {
+      const { data, error } = await signUpApi(email, password)
+      if (error) {
+        showToast(error.message, 'warn')
+        return false
+      }
+      // When email confirmation is enabled, there is no session yet.
+      if (!data.session) showToast('Check your email to confirm your account', 'sky')
+      return true
+    },
+    [showToast],
+  )
+
+  const logout = useCallback(async () => {
+    await signOutApi()
+  }, [])
 
   const openModal = useCallback((type) => setModal(type), [])
   const closeModal = useCallback(() => setModal(null), [])
@@ -498,6 +563,12 @@ export function AppProvider({ children }) {
     modal,
     notice,
     confirm,
+    session,
+    authLoading,
+    authEnabled: hasSupabase,
+    login,
+    register,
+    logout,
     openModal,
     closeModal,
     requestConfirm,

@@ -13,8 +13,12 @@ const toneDot = {
 
 // Slim brand/identity header — no tab navigation (single-page app).
 export default function Header() {
-  const { schedule, markTaken, notice } = useApp()
+  const { schedule, markTaken, notice, session, logout, authEnabled } = useApp()
   const upcoming = schedule.filter((m) => !m.taken && !m.skipped)
+
+  const email = session?.user?.email || ''
+  const accountName = email ? email.split('@')[0] : user.name
+  const accountInitials = (email ? email[0] : user.initials[0] || 'U').toUpperCase()
 
   const [open, setOpen] = useState(false)
   const ref = useRef(null)
@@ -124,10 +128,20 @@ export default function Header() {
 
         <button className="flex items-center gap-2 rounded-full border border-line bg-white py-1 pl-1 pr-3 hover:bg-page transition-colors">
           <span className="grid h-7 w-7 place-items-center rounded-full bg-brand-500 text-[12px] font-bold text-white">
-            {user.initials}
+            {accountInitials}
           </span>
-          <span className="text-[12px] font-semibold text-ink-700">{user.name}</span>
+          <span className="max-w-[120px] truncate text-[12px] font-semibold text-ink-700">{accountName}</span>
         </button>
+
+        {authEnabled && session && (
+          <button
+            onClick={logout}
+            title="Sign out"
+            className="rounded-full border border-line bg-white px-3 py-1.5 text-[12px] font-bold text-ink-500 hover:bg-page transition-colors"
+          >
+            Sign out
+          </button>
+        )}
       </div>
     </header>
   )

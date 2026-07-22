@@ -4,9 +4,9 @@
 // set, `supabase` is null and every helper here is a no-op — the app keeps working
 // with in-memory state exactly as before.
 //
-// The database schema (see supabase/schema.sql) protects every row with Row Level
-// Security keyed on auth.uid(), so we sign the visitor in anonymously on first load.
-// Enable "Anonymous sign-ins" in your Supabase dashboard: Authentication → Providers.
+// Data is protected with Row Level Security keyed on auth.uid() (see
+// supabase/schema.sql), so users sign in with email + password. Each account only
+// ever sees its own rows, and the same account works across browsers and devices.
 
 import { createClient } from '@supabase/supabase-js'
 
@@ -23,17 +23,34 @@ if (!hasSupabase && typeof console !== 'undefined') {
   )
 }
 
-// Ensure there is a signed-in session so RLS policies allow reads/writes.
-export async function ensureSession() {
+// ---- Auth ----------------------------------------------------------------
+
+export async function getSession() {
   if (!supabase) return null
-  const { data: { session } } = await supabase.auth.getSession()
-  if (session) return session
-  const { data, error } = await supabase.auth.signInAnonymously()
-  if (error) {
-    console.warn('[supabase] anonymous sign-in failed:', error.message)
-    return null
-  }
+  const { data } = await supabase.auth.getSession()
   return data.session
+}
+
+// Subscribe to sign-in / sign-out. Returns an unsubscribe function.
+export function onAuthChange(cb) {
+  if (!supabase) return () => {}
+  const { data } = supabase.auth.onAuthStateChange((_event, session) => cb(session))
+  return () => data.subscription.unsubscribe()
+}
+
+export async function signIn(email, password) {
+  if (!supabase) return { error: { message: 'Persistence is not configured.' } }
+  return supabase.auth.signInWithPassword({ email, password })
+}
+
+export async function signUp(email, password) {
+  if (!supabase) return { error: { message: 'Persistence is not configured.' } }
+  return supabase.auth.signUp({ email, password })
+}
+
+export async function signOut() {
+  if (!supabase) return
+  await supabase.auth.signOut()
 }
 
 // ---- Row <-> app-shape mapping -------------------------------------------
@@ -150,10 +167,12 @@ const rowToLog = (r) => ({
 
 // ---- Reads ----------------------------------------------------------------
 
-// Load everything the app needs in one shot. Returns null if persistence is off.
+// Load everything the app needs in one shot. Returns null if persistence is off
+// or no user is signed in.
 export async function loadAll() {
   if (!supabase) return null
-  await ensureSession()
+  const session = await getSession()
+  if (!session) return null
   const [members, meds, inv, logs] = await Promise.all([
     supabase.from('members').select('*').order('created_at', { ascending: true }),
     supabase.from('medications').select('*').order('created_at', { ascending: true }),
