@@ -81,13 +81,58 @@ create table if not exists public.dose_logs (
 
 -- ---------------------------------------------------------------------------
 -- Backfill columns on pre-existing tables
--- (safe to re-run: `create table if not exists` above will NOT add missing
---  columns to a table that already exists, so ensure `owner_id` exists here)
+-- `create table if not exists` above will NOT add missing columns to a table
+-- that already exists, so ensure every column exists here. Safe to re-run.
 -- ---------------------------------------------------------------------------
-alter table public.members     add column if not exists owner_id uuid not null default auth.uid() references auth.users (id) on delete cascade;
-alter table public.medications add column if not exists owner_id uuid not null default auth.uid() references auth.users (id) on delete cascade;
-alter table public.inventory   add column if not exists owner_id uuid not null default auth.uid() references auth.users (id) on delete cascade;
-alter table public.dose_logs   add column if not exists owner_id uuid not null default auth.uid() references auth.users (id) on delete cascade;
+-- members
+alter table public.members add column if not exists owner_id   uuid not null default auth.uid() references auth.users (id) on delete cascade;
+alter table public.members add column if not exists name        text;
+alter table public.members add column if not exists full_name   text;
+alter table public.members add column if not exists initials    text;
+alter table public.members add column if not exists tone        text not null default 'brand';
+alter table public.members add column if not exists image       text;
+alter table public.members add column if not exists created_at  timestamptz not null default now();
+
+-- medications
+alter table public.medications add column if not exists owner_id        uuid not null default auth.uid() references auth.users (id) on delete cascade;
+alter table public.medications add column if not exists member_id       uuid references public.members (id) on delete cascade;
+alter table public.medications add column if not exists name            text;
+alter table public.medications add column if not exists sub             text;
+alter table public.medications add column if not exists dosage          text;
+alter table public.medications add column if not exists unit            text;
+alter table public.medications add column if not exists frequency       text not null default 'Daily';
+alter table public.medications add column if not exists "time"          text;
+alter table public.medications add column if not exists label           text;
+alter table public.medications add column if not exists period          text;
+alter table public.medications add column if not exists tone            text not null default 'brand';
+alter table public.medications add column if not exists image           text;
+alter table public.medications add column if not exists taken           boolean not null default false;
+alter table public.medications add column if not exists skipped         boolean not null default false;
+alter table public.medications add column if not exists scheduled_today boolean not null default true;
+alter table public.medications add column if not exists info            jsonb not null default '{}'::jsonb;
+alter table public.medications add column if not exists created_at      timestamptz not null default now();
+
+-- inventory
+alter table public.inventory add column if not exists owner_id      uuid not null default auth.uid() references auth.users (id) on delete cascade;
+alter table public.inventory add column if not exists member_id     uuid references public.members (id) on delete cascade;
+alter table public.inventory add column if not exists medication_id uuid references public.medications (id) on delete cascade;
+alter table public.inventory add column if not exists name          text;
+alter table public.inventory add column if not exists detail        text;
+alter table public.inventory add column if not exists days          integer not null default 30;
+alter table public.inventory add column if not exists pct           integer not null default 100;
+alter table public.inventory add column if not exists tone          text not null default 'brand';
+alter table public.inventory add column if not exists created_at    timestamptz not null default now();
+
+-- dose_logs
+alter table public.dose_logs add column if not exists owner_id       uuid not null default auth.uid() references auth.users (id) on delete cascade;
+alter table public.dose_logs add column if not exists member_id      uuid references public.members (id) on delete set null;
+alter table public.dose_logs add column if not exists medication_id  uuid references public.medications (id) on delete set null;
+alter table public.dose_logs add column if not exists name           text;
+alter table public.dose_logs add column if not exists dose           text;
+alter table public.dose_logs add column if not exists scheduled_time text;
+alter table public.dose_logs add column if not exists marked_time    text;
+alter table public.dose_logs add column if not exists status         text not null default 'Taken';
+alter table public.dose_logs add column if not exists logged_at      timestamptz not null default now();
 
 -- ---------------------------------------------------------------------------
 -- Indexes
