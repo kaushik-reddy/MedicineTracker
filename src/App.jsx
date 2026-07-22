@@ -6,13 +6,40 @@ import { InventoryCard, QuickActionsCard } from './sections/Panels.jsx'
 import { HistoryCard } from './sections/HistoryTips.jsx'
 import { FooterBar } from './sections/FooterCTA.jsx'
 import { ModalLayer } from './sections/Modals.jsx'
-import { useFitScale } from './useFitScale.js'
+import { useFitScale, useIsMobile } from './useFitScale.js'
 
 const DESIGN_W = 1600
 const DESIGN_H = 1000
 
+// Mobile: cards stack in a single scrollable column with sensible fixed heights
+// so each card's internal flex/scroll regions behave exactly like on desktop.
+function MobileApp() {
+  const cell = (h) => `${h} shrink-0`
+  return (
+    <div className="min-h-screen w-full overflow-y-auto bg-page">
+      <div className="mx-auto flex w-full max-w-md flex-col gap-3 px-4 pb-8 pt-4">
+        <Header />
+        <div className={cell('h-[188px]')}><HeroCard className="h-full" /></div>
+        <div className={cell('h-[236px]')}><NextDoseCard className="h-full" /></div>
+        <div className={cell('h-[252px]')}><ScheduleCard className="h-full" /></div>
+        <div className={cell('h-[320px]')}><MedsCard className="h-full" /></div>
+        <div className={cell('h-[260px]')}><GlanceCard className="h-full" /></div>
+        <div className={cell('h-[268px]')}><AdherenceCard className="h-full" /></div>
+        <div className={cell('h-[300px]')}><InventoryCard className="h-full" /></div>
+        <div className={cell('h-[248px]')}><QuickActionsCard className="h-full" /></div>
+        <div className={cell('h-[300px]')}><HistoryCard className="h-full" /></div>
+        <FooterBar className="h-6 shrink-0" />
+      </div>
+      <ModalLayer />
+    </div>
+  )
+}
+
 export default function App() {
+  const isMobile = useIsMobile()
   const scale = useFitScale(DESIGN_W, DESIGN_H)
+
+  if (isMobile) return <MobileApp />
 
   return (
     <div className="relative h-screen w-screen overflow-hidden bg-page">

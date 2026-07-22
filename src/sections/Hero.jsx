@@ -13,7 +13,7 @@ export function HeroCard({ className = '' }) {
     <Card className={'relative flex overflow-hidden ' + className}>
       <div className="flex flex-1 items-center gap-2 py-3 pl-5 pr-3">
         <div className="flex-1">
-          <h1 className="text-2xl font-extrabold leading-tight text-ink-900">
+          <h1 className="text-xl font-extrabold leading-tight text-ink-900 sm:text-2xl">
             Good morning,
             <br />
             {firstName}! <span>👋</span>
@@ -35,7 +35,7 @@ export function HeroCard({ className = '' }) {
         <Illustration
           src="/assets/hero.png"
           label="3D Pill"
-          className="max-h-full max-w-[240px] shrink-0 self-center object-contain"
+          className="max-h-full w-[110px] shrink-0 self-center object-contain sm:w-auto sm:max-w-[240px]"
         />
       </div>
       <div className="pointer-events-none absolute -right-8 -top-8 h-32 w-32 rounded-full bg-brand-100/50 blur-2xl" />
