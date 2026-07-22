@@ -80,6 +80,16 @@ create table if not exists public.dose_logs (
 );
 
 -- ---------------------------------------------------------------------------
+-- Backfill columns on pre-existing tables
+-- (safe to re-run: `create table if not exists` above will NOT add missing
+--  columns to a table that already exists, so ensure `owner_id` exists here)
+-- ---------------------------------------------------------------------------
+alter table public.members     add column if not exists owner_id uuid not null default auth.uid() references auth.users (id) on delete cascade;
+alter table public.medications add column if not exists owner_id uuid not null default auth.uid() references auth.users (id) on delete cascade;
+alter table public.inventory   add column if not exists owner_id uuid not null default auth.uid() references auth.users (id) on delete cascade;
+alter table public.dose_logs   add column if not exists owner_id uuid not null default auth.uid() references auth.users (id) on delete cascade;
+
+-- ---------------------------------------------------------------------------
 -- Indexes
 -- ---------------------------------------------------------------------------
 create index if not exists idx_members_owner       on public.members (owner_id);
