@@ -46,6 +46,7 @@ export function AppProvider({ children }) {
   const [confirm, setConfirm] = useState(null)
   const [session, setSession] = useState(null)
   const [authLoading, setAuthLoading] = useState(hasSupabase)
+  const [dataLoading, setDataLoading] = useState(hasSupabase)
 
   const usersById = useMemo(() => Object.fromEntries(users.map((u) => [u.id, u])), [users])
   const usersRef = useRef(usersById)
@@ -78,14 +79,18 @@ export function AppProvider({ children }) {
       setMedications([])
       setInventory([])
       setHistory([])
+      setDataLoading(false)
       return
     }
+    setDataLoading(true)
     loadAll().then((data) => {
-      if (!data) return
-      setUsers(data.users)
-      setMedications(data.medications)
-      setInventory(data.inventory)
-      setHistory(data.history)
+      if (data) {
+        setUsers(data.users)
+        setMedications(data.medications)
+        setInventory(data.inventory)
+        setHistory(data.history)
+      }
+      setDataLoading(false)
     })
   }, [uid])
 
@@ -508,6 +513,32 @@ export function AppProvider({ children }) {
     [showToast],
   )
 
+  // Clone a medication (and its stock) for another member, then open it for edits.
+  const duplicateMedication = useCallback(
+    (id) => {
+      const src = medications.find((m) => m.id === id)
+      if (!src) return
+      const copyId = newId()
+      const copy = { ...src, id: copyId, name: `${src.name} (copy)`, taken: false, skipped: false }
+      setMedications((list) => [...list, copy])
+
+      const srcInv = inventory.find((it) => it.medicationId === id)
+      let invCopy = null
+      if (srcInv) {
+        invCopy = { ...srcInv, id: newId(), medicationId: copyId }
+        setInventory((list) => [...list, invCopy])
+      }
+      db.upsertMedication(copy).then(() => {
+        if (invCopy) db.upsertInventory(invCopy)
+      })
+
+      setConfirm({ medId: copyId })
+      setModal('edit-medication')
+      showToast(`Duplicated ${src.name}`, 'accent')
+    },
+    [medications, inventory, showToast],
+  )
+
   const setMedImage = useCallback((id, image) => {
     let next = null
     setMedications((meds) =>
@@ -576,6 +607,7 @@ export function AppProvider({ children }) {
     confirm,
     session,
     authLoading,
+    dataLoading,
     authEnabled: hasSupabase,
     login,
     register,
@@ -604,6 +636,7 @@ export function AppProvider({ children }) {
     restock,
     addMedication,
     editMedication,
+    duplicateMedication,
     logDose,
     setReminder,
     exportReport,

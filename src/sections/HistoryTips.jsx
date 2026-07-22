@@ -1,11 +1,11 @@
 import { useState } from 'react'
-import { ChevronRight, Droplet } from '../icons.jsx'
-import { Card, SectionTitle, Illustration, toneBar, userTone } from '../ui.jsx'
+import { ChevronRight, Droplet, Clock } from '../icons.jsx'
+import { Card, SectionTitle, Illustration, toneBar, userTone, EmptyState, LoadingState } from '../ui.jsx'
 import { tips } from '../data.js'
 import { useApp } from '../store.jsx'
 
 export function HistoryCard({ className = '' }) {
-  const { history, openModal, usersById } = useApp()
+  const { history, openModal, usersById, dataLoading } = useApp()
   return (
     <Card className={'flex flex-col p-4 ' + className}>
       <div className="flex items-center justify-between">
@@ -18,40 +18,46 @@ export function HistoryCard({ className = '' }) {
         </button>
       </div>
 
-      <div className="mt-2 flex-1 overflow-y-auto no-scrollbar">
-        <div className="relative pl-4">
-          {/* vertical timeline rail */}
-          <div className="absolute bottom-2 left-[5px] top-2 w-px bg-line" />
-          {history.map((h, i) => {
-            const taken = h.status === 'Taken'
-            const u = usersById[h.user]
-            const uTone = (userTone[u?.tone] || userTone.brand).text
-            return (
-              <div key={i} className="relative flex items-center gap-2 py-[6px]">
-                <span
-                  className={
-                    'absolute -left-4 top-1/2 h-2.5 w-2.5 -translate-y-1/2 rounded-full ring-2 ring-white ' +
-                    toneBar[h.tone]
-                  }
-                />
-                <span className="shrink-0 text-[12px] font-bold text-ink-900">{h.name}</span>
-                <span className="shrink-0 text-[10px] font-medium text-ink-400">{h.dose}</span>
-                {u && <span className={'shrink-0 text-[10px] font-bold ' + uTone}>· {u.name}</span>}
-                <span className="min-w-0 flex-1 truncate text-right text-[10px] font-semibold text-ink-400">
-                  {h.date}
-                </span>
-                <span
-                  className={
-                    'shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold ' +
-                    (taken ? 'bg-brand-50 text-brand-600' : 'bg-amber-50 text-warn-500')
-                  }
-                >
-                  {h.status}
-                </span>
-              </div>
-            )
-          })}
-        </div>
+      <div className="mt-2 flex flex-1 flex-col overflow-y-auto no-scrollbar">
+        {dataLoading && history.length === 0 ? (
+          <LoadingState label="Loading history…" />
+        ) : history.length === 0 ? (
+          <EmptyState icon={Clock} title="No history yet" hint="Doses you take or skip will show up here." />
+        ) : (
+          <div className="relative pl-4">
+            {/* vertical timeline rail */}
+            <div className="absolute bottom-2 left-[5px] top-2 w-px bg-line" />
+            {history.map((h, i) => {
+              const taken = h.status === 'Taken'
+              const u = usersById[h.user]
+              const uTone = (userTone[u?.tone] || userTone.brand).text
+              return (
+                <div key={i} className="relative flex items-center gap-2 py-[6px]">
+                  <span
+                    className={
+                      'absolute -left-4 top-1/2 h-2.5 w-2.5 -translate-y-1/2 rounded-full ring-2 ring-white ' +
+                      toneBar[h.tone]
+                    }
+                  />
+                  <span className="max-w-[38%] shrink-0 truncate text-[12px] font-bold text-ink-900">{h.name}</span>
+                  <span className="shrink-0 text-[10px] font-medium text-ink-400">{h.dose}</span>
+                  {u && <span className={'shrink-0 truncate text-[10px] font-bold ' + uTone}>· {u.name}</span>}
+                  <span className="min-w-0 flex-1 truncate text-right text-[10px] font-semibold text-ink-400">
+                    {h.date}
+                  </span>
+                  <span
+                    className={
+                      'shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold ' +
+                      (taken ? 'bg-brand-50 text-brand-600' : 'bg-amber-50 text-warn-500')
+                    }
+                  >
+                    {h.status}
+                  </span>
+                </div>
+              )
+            })}
+          </div>
+        )}
       </div>
     </Card>
   )

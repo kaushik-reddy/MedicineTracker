@@ -1,5 +1,5 @@
 import { ChevronRight, LogPlus, Pill, BellPlus, Download, RefreshCw, CheckCircle, Cart, Note, Users } from '../icons.jsx'
-import { Card, SectionTitle, toneSoft, toneText, PillGlyph, UserAvatar, userTone } from '../ui.jsx'
+import { Card, SectionTitle, toneSoft, toneText, PillGlyph, UserAvatar, userTone, EmptyState, LoadingState } from '../ui.jsx'
 import { quickActions } from '../data.js'
 import { useApp } from '../store.jsx'
 import { emptyByLabel } from '../time.js'
@@ -63,14 +63,14 @@ function StockRing({ pct, tone, days }) {
 }
 
 export function InventoryCard({ className = '' }) {
-  const { inventory, openRestock, usersById } = useApp()
+  const { inventory, openRestock, usersById, dataLoading } = useApp()
   const lowCount = inventory.filter((it) => it.days <= LOW_THRESHOLD).length
 
   return (
     <Card className={'flex flex-col p-4 ' + className}>
       <div className="flex items-center justify-between">
         <SectionTitle className="!text-[15px]">Medication Inventory</SectionTitle>
-        {lowCount > 0 ? (
+        {inventory.length === 0 ? null : lowCount > 0 ? (
           <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-warn-500">{lowCount} low</span>
         ) : (
           <span className="inline-flex items-center gap-1 rounded-full bg-brand-50 px-2 py-0.5 text-[10px] font-bold text-brand-600">
@@ -79,57 +79,65 @@ export function InventoryCard({ className = '' }) {
         )}
       </div>
 
-      <div className="mt-2 flex-1 space-y-2 overflow-y-auto no-scrollbar">
-        {inventory.map((it) => {
-          const low = it.days <= LOW_THRESHOLD
-          return (
-            <div
-              key={it.name}
-              className={
-                'rounded-xl border p-2.5 transition-colors ' +
-                (low ? 'border-amber-200 bg-amber-50/40' : 'border-line bg-white')
-              }
-            >
-              <div className="flex items-center gap-2.5">
-                <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg border border-line bg-white">
-                  <PillGlyph tone={it.tone} className="h-5 w-5" />
-                </span>
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-baseline justify-between gap-2">
-                    <span className="truncate text-[12px] font-bold text-ink-900">{it.name}</span>
-                    <span className={'shrink-0 text-[12px] font-extrabold ' + (low ? 'text-warn-500' : 'text-ink-900')}>
-                      {it.days}
-                      <span className="text-[9px] font-semibold text-ink-400"> days</span>
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-1 truncate text-[10px] text-ink-400">
-                    {usersById[it.user] && (
-                      <span className={'inline-flex items-center gap-1 font-bold ' + (userTone[usersById[it.user].tone] || userTone.brand).text}>
-                        <UserAvatar user={usersById[it.user]} className="h-3.5 w-3.5 text-[7px]" />
-                        {usersById[it.user].name}
-                      </span>
-                    )}
-                    · Empty by <span className={low ? 'font-bold text-warn-500' : 'font-semibold text-ink-500'}>{emptyByLabel(it.days)}</span>
-                  </div>
-                </div>
-                <button
-                  onClick={() => openRestock(it.name)}
+      <div className="mt-2 flex flex-1 flex-col overflow-y-auto no-scrollbar">
+        {dataLoading && inventory.length === 0 ? (
+          <LoadingState label="Loading inventory…" />
+        ) : inventory.length === 0 ? (
+          <EmptyState icon={Pill} title="No inventory yet" hint="Stock is tracked automatically when you add a medication." />
+        ) : (
+          <div className="space-y-2">
+            {inventory.map((it) => {
+              const low = it.days <= LOW_THRESHOLD
+              return (
+                <div
+                  key={it.name}
                   className={
-                    'inline-flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1.5 text-[11px] font-bold transition-colors ' +
-                    (low
-                      ? 'bg-brand-500 text-white hover:bg-brand-600'
-                      : 'border border-line text-ink-600 hover:bg-page')
+                    'rounded-xl border p-2.5 transition-colors ' +
+                    (low ? 'border-amber-200 bg-amber-50/40' : 'border-line bg-white')
                   }
                 >
-                  <RefreshCw className="h-3 w-3" /> Restock
-                </button>
-              </div>
-              <div className="mt-2">
-                <SegmentedBar pct={it.pct} low={low} />
-              </div>
-            </div>
-          )
-        })}
+                  <div className="flex items-center gap-2.5">
+                    <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg border border-line bg-white">
+                      <PillGlyph tone={it.tone} className="h-5 w-5" />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-baseline justify-between gap-2">
+                        <span className="truncate text-[12px] font-bold text-ink-900">{it.name}</span>
+                        <span className={'shrink-0 text-[12px] font-extrabold ' + (low ? 'text-warn-500' : 'text-ink-900')}>
+                          {it.days}
+                          <span className="text-[9px] font-semibold text-ink-400"> days</span>
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1 truncate text-[10px] text-ink-400">
+                        {usersById[it.user] && (
+                          <span className={'inline-flex items-center gap-1 font-bold ' + (userTone[usersById[it.user].tone] || userTone.brand).text}>
+                            <UserAvatar user={usersById[it.user]} className="h-3.5 w-3.5 text-[7px]" />
+                            {usersById[it.user].name}
+                          </span>
+                        )}
+                        · Empty by <span className={low ? 'font-bold text-warn-500' : 'font-semibold text-ink-500'}>{emptyByLabel(it.days)}</span>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => openRestock(it.name)}
+                      className={
+                        'inline-flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1.5 text-[11px] font-bold transition-colors ' +
+                        (low
+                          ? 'bg-brand-500 text-white hover:bg-brand-600'
+                          : 'border border-line text-ink-600 hover:bg-page')
+                      }
+                    >
+                      <RefreshCw className="h-3 w-3" /> Restock
+                    </button>
+                  </div>
+                  <div className="mt-2">
+                    <SegmentedBar pct={it.pct} low={low} />
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
       </div>
     </Card>
   )

@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
-import { Plus, CheckCircle, Clock, Sun, Moon, Flame, Close } from '../icons.jsx'
-import { Card, SectionTitle, Dropdown, toneBar, MedGlyph, UserAvatar, userTone } from '../ui.jsx'
+import { Plus, CheckCircle, Clock, Sun, Moon, Flame, Close, Pill } from '../icons.jsx'
+import { Card, SectionTitle, Dropdown, toneBar, MedGlyph, UserAvatar, userTone, EmptyState, LoadingState } from '../ui.jsx'
 import { useApp } from '../store.jsx'
 
 const periodMeta = {
@@ -60,7 +60,7 @@ function AdherenceRing({ value }) {
 }
 
 export function MedsCard({ className = '' }) {
-  const { medications, openModal, openMedDetails, usersById } = useApp()
+  const { medications, openModal, openMedDetails, usersById, dataLoading } = useApp()
 
   return (
     <Card className={'flex flex-col p-4 ' + className}>
@@ -74,41 +74,49 @@ export function MedsCard({ className = '' }) {
         </button>
       </div>
 
-      <div className="mt-3 flex-1 space-y-2 overflow-y-auto no-scrollbar">
-        {medications.map((m) => {
-          const { Icon: PIcon, color } = periodMeta[m.period] || periodMeta.am
-          const u = usersById[m.user]
-          const uTone = (userTone[u?.tone] || userTone.brand).text
-          return (
-            <button
-              key={m.id}
-              onClick={() => openMedDetails(m.id)}
-              className="flex w-full items-center gap-3 rounded-2xl border border-line/70 bg-white p-2.5 text-left transition-colors hover:border-brand-200 hover:bg-page/40"
-            >
-              <span className="grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-xl border border-line bg-white">
-                <MedGlyph med={m} className="h-7 w-7" />
-              </span>
+      <div className="mt-3 flex flex-1 flex-col overflow-y-auto no-scrollbar">
+        {dataLoading && medications.length === 0 ? (
+          <LoadingState label="Loading medications…" />
+        ) : medications.length === 0 ? (
+          <EmptyState icon={Pill} title="No medications yet" hint="Tap “Add Medication” to add your first one." />
+        ) : (
+          <div className="space-y-2">
+            {medications.map((m) => {
+              const { Icon: PIcon, color } = periodMeta[m.period] || periodMeta.am
+              const u = usersById[m.user]
+              const uTone = (userTone[u?.tone] || userTone.brand).text
+              return (
+                <button
+                  key={m.id}
+                  onClick={() => openMedDetails(m.id)}
+                  className="flex w-full items-center gap-3 rounded-2xl border border-line/70 bg-white p-2.5 text-left transition-colors hover:border-brand-200 hover:bg-page/40"
+                >
+                  <span className="grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-xl border border-line bg-white">
+                    <MedGlyph med={m} className="h-7 w-7" />
+                  </span>
 
-              <div className="min-w-0 flex-1">
-                <div className="truncate text-[13px] font-bold text-ink-900">{m.name}</div>
-                <div className="truncate text-[10px] text-ink-400">
-                  {u && <span className={'font-bold ' + uTone}>{u.name}</span>} · {m.sub} · {m.dosage} • {m.unit}
-                </div>
-              </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-[13px] font-bold text-ink-900">{m.name}</div>
+                    <div className="truncate text-[10px] text-ink-400">
+                      {u && <span className={'font-bold ' + uTone}>{u.name}</span>} · {m.sub} · {m.dosage} • {m.unit}
+                    </div>
+                  </div>
 
-              {u && <UserAvatar user={u} className="h-6 w-6 text-[10px]" />}
+                  {u && <UserAvatar user={u} className="h-6 w-6 text-[10px]" />}
 
-              <span className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-line px-2 py-1 text-[11px] font-semibold text-ink-700">
-                <PIcon className={'h-3.5 w-3.5 ' + color} />
-                {m.time}
-              </span>
+                  <span className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-line px-2 py-1 text-[11px] font-semibold text-ink-700">
+                    <PIcon className={'h-3.5 w-3.5 ' + color} />
+                    {m.time}
+                  </span>
 
-              <div className="shrink-0">
-                <StatusBadge med={m} />
-              </div>
-            </button>
-          )
-        })}
+                  <div className="shrink-0">
+                    <StatusBadge med={m} />
+                  </div>
+                </button>
+              )
+            })}
+          </div>
+        )}
       </div>
     </Card>
   )

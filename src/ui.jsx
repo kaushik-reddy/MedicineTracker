@@ -43,6 +43,31 @@ export function SectionTitle({ children, className = '' }) {
   return <h2 className={'text-[17px] font-bold text-ink-900 ' + className}>{children}</h2>
 }
 
+// Shown inside a card's content area when there is nothing to display.
+export function EmptyState({ icon: Icon, title = 'Nothing here yet', hint, className = '' }) {
+  return (
+    <div className={'flex flex-1 flex-col items-center justify-center gap-2 px-4 py-6 text-center ' + className}>
+      {Icon && (
+        <span className="grid h-10 w-10 place-items-center rounded-2xl bg-page text-ink-400">
+          <Icon className="h-5 w-5" />
+        </span>
+      )}
+      <div className="text-[13px] font-bold text-ink-500">{title}</div>
+      {hint && <div className="max-w-[240px] text-[11px] leading-snug text-ink-400">{hint}</div>}
+    </div>
+  )
+}
+
+// Shown while a card's data is still loading from the backend.
+export function LoadingState({ label = 'Loading…', className = '' }) {
+  return (
+    <div className={'flex flex-1 flex-col items-center justify-center gap-2.5 px-4 py-6 text-center ' + className}>
+      <span className="h-6 w-6 animate-spin rounded-full border-2 border-line border-t-brand-500" />
+      <div className="text-[11px] font-semibold text-ink-400">{label}</div>
+    </div>
+  )
+}
+
 export function Dropdown({ options, value, onChange }) {
   const [open, setOpen] = useState(false)
   const ref = useRef(null)

@@ -849,7 +849,7 @@ function ImageUploader({ med, onPick, size = 'h-14 w-14' }) {
 }
 
 function MedDetails() {
-  const { confirm, medications, openScheduleMed, openEditMed, requestConfirm, setMedImage, closeModal, usersById } = useApp()
+  const { confirm, medications, openScheduleMed, openEditMed, duplicateMedication, requestConfirm, setMedImage, closeModal, usersById } = useApp()
   const med = medications.find((m) => m.id === (confirm && confirm.medId))
   if (!med) return null
   const owner = usersById[med.user]
@@ -902,18 +902,18 @@ function MedDetails() {
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-ink-900/40 backdrop-blur-sm" onClick={closeModal} />
       <div className="relative flex max-h-[88vh] w-full max-w-md flex-col overflow-hidden rounded-3xl bg-white shadow-2xl">
-        <div className="flex items-start justify-between p-6 pb-4">
-          <div className="flex items-center gap-3">
+        <div className="flex items-start justify-between gap-3 p-6 pb-4">
+          <div className="flex min-w-0 items-center gap-3">
             <ImageUploader med={med} onPick={(img) => setMedImage(med.id, img)} />
-            <div>
-              <h2 className="text-[18px] font-extrabold text-ink-900">{med.name}</h2>
-              <div className="mt-0.5 flex items-center gap-2">
-                <span className="rounded-full bg-page px-2 py-0.5 text-[10px] font-bold text-ink-500">{info.category}</span>
+            <div className="min-w-0">
+              <h2 className="break-words text-[18px] font-extrabold leading-tight text-ink-900">{med.name}</h2>
+              <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
+                <span className="max-w-[160px] truncate rounded-full bg-page px-2 py-0.5 text-[10px] font-bold text-ink-500">{info.category}</span>
                 <span className={'text-[12px] font-bold ' + statusColor}>{statusLabel}</span>
                 {owner && (
                   <span className="inline-flex items-center gap-1">
                     <UserAvatar user={owner} className="h-4 w-4 text-[8px]" />
-                    <span className="text-[11px] font-bold text-ink-500">{owner.name}</span>
+                    <span className="max-w-[120px] truncate text-[11px] font-bold text-ink-500">{owner.name}</span>
                   </span>
                 )}
               </div>
@@ -930,9 +930,9 @@ function MedDetails() {
         <div className="flex-1 overflow-y-auto no-scrollbar px-6">
           <div className="divide-y divide-line rounded-2xl border border-line">
             {rows.map(([k, v]) => (
-              <div key={k} className="flex items-center justify-between px-4 py-2.5">
-                <span className="text-[12px] font-semibold text-ink-500">{k}</span>
-                <span className="text-[13px] font-bold text-ink-900">{v}</span>
+              <div key={k} className="flex items-start justify-between gap-3 px-4 py-2.5">
+                <span className="shrink-0 text-[12px] font-semibold text-ink-500">{k}</span>
+                <span className="min-w-0 break-words text-right text-[13px] font-bold text-ink-900">{v}</span>
               </div>
             ))}
           </div>
@@ -950,27 +950,37 @@ function MedDetails() {
           <p className="mt-3 px-1 text-[11px] text-ink-400">Tap the image to upload your own pill/capsule photo (optional).</p>
         </div>
 
-        <div className="flex gap-3 p-6 pt-4">
-          <button
-            onClick={() => openEditMed(med.id)}
-            className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-line py-2.5 text-[13px] font-bold text-ink-600 hover:bg-page transition-colors"
-          >
-            <Note className="h-4 w-4" /> Edit
-          </button>
-          <button
-            onClick={() => openScheduleMed(med.id)}
-            className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-brand-500 py-2.5 text-[13px] font-bold text-white hover:bg-brand-600 transition-colors"
-          >
-            <CalendarDays className="h-4 w-4" /> Add to calendar
-          </button>
-          {med.scheduledToday && (
+        <div className="flex flex-col gap-2.5 p-6 pt-4">
+          <div className="flex gap-3">
             <button
-              onClick={() => requestConfirm({ kind: 'unschedule', medId: med.id })}
-              className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-amber-200 bg-amber-50 py-2.5 text-[13px] font-bold text-warn-500 hover:bg-amber-100 transition-colors"
+              onClick={() => openEditMed(med.id)}
+              className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-line py-2.5 text-[13px] font-bold text-ink-600 hover:bg-page transition-colors"
             >
-              <Trash className="h-4 w-4" /> Remove from calendar
+              <Note className="h-4 w-4" /> Edit
             </button>
-          )}
+            <button
+              onClick={() => duplicateMedication(med.id)}
+              className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-line py-2.5 text-[13px] font-bold text-ink-600 hover:bg-page transition-colors"
+            >
+              <Plus className="h-4 w-4" /> Duplicate
+            </button>
+          </div>
+          <div className="flex gap-3">
+            <button
+              onClick={() => openScheduleMed(med.id)}
+              className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-brand-500 py-2.5 text-[13px] font-bold text-white hover:bg-brand-600 transition-colors"
+            >
+              <CalendarDays className="h-4 w-4" /> Add to calendar
+            </button>
+            {med.scheduledToday && (
+              <button
+                onClick={() => requestConfirm({ kind: 'unschedule', medId: med.id })}
+                className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-amber-200 bg-amber-50 py-2.5 text-[13px] font-bold text-warn-500 hover:bg-amber-100 transition-colors"
+              >
+                <Trash className="h-4 w-4" /> Remove from calendar
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </div>

@@ -44,19 +44,34 @@ export function HeroCard({ className = '' }) {
 }
 
 export function NextDoseCard({ className = '' }) {
-  const { nextDose, requestConfirm, usersById } = useApp()
+  const { nextDose, schedule, dataLoading, requestConfirm, usersById } = useApp()
   const now = useNow(1000)
   const [menu, setMenu] = useState(null) // 'snooze' | 'reschedule'
   const [reTime, setReTime] = useState('')
 
   if (!nextDose) {
+    const loading = dataLoading && schedule.length === 0
+    const allDone = schedule.length > 0
     return (
       <Card className={'flex flex-col items-center justify-center p-4 text-center ' + className}>
-        <span className="grid h-12 w-12 place-items-center rounded-2xl bg-brand-50 text-brand-600">
-          <CheckCircle className="h-7 w-7" />
-        </span>
-        <div className="mt-3 text-[15px] font-extrabold text-ink-900">All doses done!</div>
-        <div className="mt-1 text-[12px] text-ink-500">You're all caught up for today. 🎉</div>
+        {loading ? (
+          <>
+            <span className="h-8 w-8 animate-spin rounded-full border-2 border-line border-t-brand-500" />
+            <div className="mt-3 text-[13px] font-semibold text-ink-400">Loading your next dose…</div>
+          </>
+        ) : (
+          <>
+            <span className="grid h-12 w-12 place-items-center rounded-2xl bg-brand-50 text-brand-600">
+              <CheckCircle className="h-7 w-7" />
+            </span>
+            <div className="mt-3 text-[15px] font-extrabold text-ink-900">
+              {allDone ? 'All doses done!' : 'No doses scheduled'}
+            </div>
+            <div className="mt-1 text-[12px] text-ink-500">
+              {allDone ? "You're all caught up for today. 🎉" : 'Add a medication to see your next dose here.'}
+            </div>
+          </>
+        )}
       </Card>
     )
   }
@@ -96,10 +111,10 @@ export function NextDoseCard({ className = '' }) {
       <div className="my-2 h-px bg-line" />
 
       <div className="flex items-center justify-between gap-2">
-        <div className="text-[14px] font-bold text-ink-900">{nextDose.name}</div>
+        <div className="min-w-0 flex-1 truncate text-[14px] font-bold text-ink-900">{nextDose.name}</div>
         <UserChip user={usersById[nextDose.user]} />
       </div>
-      <div className="text-[12px] text-ink-500">{nextDose.detail}</div>
+      <div className="truncate text-[12px] text-ink-500">{nextDose.detail}</div>
 
       <div className="mt-auto pt-3">
         <button
