@@ -295,7 +295,7 @@ function SetReminder() {
 }
 
 function ExportReport() {
-  const { exportReport, medications, closeModal } = useApp()
+  const { exportReport, medications, glance, closeModal } = useApp()
   const [format, setFormat] = useState('CSV')
   return (
     <Shell icon={Download} tone="sky" title="Export Report" subtitle="Download your medication data">
@@ -306,11 +306,11 @@ function ExportReport() {
         </div>
         <div className="mt-2 flex items-center justify-between">
           <span className="font-semibold text-ink-700">Adherence</span>
-          <span className="font-bold text-brand-600">87%</span>
+          <span className="font-bold text-brand-600">{glance.adherence}%</span>
         </div>
         <div className="mt-2 flex items-center justify-between">
-          <span className="font-semibold text-ink-700">Streak</span>
-          <span className="font-bold text-ink-900">12 days</span>
+          <span className="font-semibold text-ink-700">Doses today</span>
+          <span className="font-bold text-ink-900">{glance.takenCount} / {glance.total}</span>
         </div>
       </div>
 

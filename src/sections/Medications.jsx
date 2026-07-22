@@ -1,7 +1,6 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { Plus, CheckCircle, Clock, Sun, Moon, Flame, Close } from '../icons.jsx'
 import { Card, SectionTitle, Dropdown, toneBar, MedGlyph, UserAvatar, userTone } from '../ui.jsx'
-import { streak } from '../data.js'
 import { useApp } from '../store.jsx'
 
 const periodMeta = {
@@ -117,7 +116,7 @@ export function MedsCard({ className = '' }) {
 
 export function AdherenceCard({ className = '' }) {
   const [range, setRange] = useState('This Week')
-  const { users, medications } = useApp()
+  const { users, medications, history, glance } = useApp()
 
   const perUser = users
     .map((u) => {
@@ -126,6 +125,36 @@ export function AdherenceCard({ className = '' }) {
       return { user: u, pct, total: mine.length }
     })
     .filter((x) => x.total > 0)
+
+  // Last 7 days adherence, derived from history.
+  const streak = useMemo(() => {
+    const DAY = 86400000
+    const letters = ['S', 'M', 'T', 'W', 'T', 'F', 'S']
+    const now = new Date()
+    const out = []
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(now.getTime() - i * DAY)
+      const start = new Date(d)
+      start.setHours(0, 0, 0, 0)
+      const end = start.getTime() + DAY
+      const entries = history.filter((e) => e.ts >= start.getTime() && e.ts < end)
+      const total = entries.length
+      const taken = entries.filter((e) => e.status === 'Taken').length
+      const value = total ? Math.round((taken / total) * 100) : 0
+      out.push({ day: letters[d.getDay()], value, total, tone: 'brand' })
+    }
+    return out
+  }, [history])
+
+  // Consecutive fully-adherent days ending today.
+  const streakDays = useMemo(() => {
+    let n = 0
+    for (let i = streak.length - 1; i >= 0; i--) {
+      if (streak[i].total > 0 && streak[i].value === 100) n++
+      else break
+    }
+    return n
+  }, [streak])
 
   return (
     <Card className={'flex flex-col p-4 ' + className}>
@@ -136,23 +165,25 @@ export function AdherenceCard({ className = '' }) {
 
       <div className="mt-1 flex items-center gap-3">
         <div className="flex flex-col items-center">
-          <AdherenceRing value={87} />
-          <p className="mt-1 text-center text-[10px] font-medium text-ink-500">18% above last week</p>
+          <AdherenceRing value={glance.adherence} />
+          <p className="mt-1 text-center text-[10px] font-medium text-ink-500">
+            {glance.total ? `${glance.takenCount} of ${glance.total} today` : 'No doses today'}
+          </p>
         </div>
 
         <div className="flex-1 border-l border-line pl-3">
           <div className="text-[11px] font-semibold text-ink-400">Streak</div>
           <div className="mt-0.5 flex items-center gap-1.5">
             <Flame className="h-4 w-4" />
-            <span className="text-[15px] font-extrabold text-ink-900">12 Days</span>
+            <span className="text-[15px] font-extrabold text-ink-900">{streakDays} {streakDays === 1 ? 'Day' : 'Days'}</span>
           </div>
-          <div className="text-[10px] font-medium text-ink-400">Keep it going!</div>
+          <div className="text-[10px] font-medium text-ink-400">{streakDays ? 'Keep it going!' : 'Log doses to build a streak'}</div>
 
           <div className="mt-2 flex items-end gap-1">
             {streak.map((s, i) => (
               <div key={i} className="flex flex-1 flex-col items-center gap-1">
                 <div className="flex h-9 items-end">
-                  <div className={'w-2 rounded-full ' + toneBar[s.tone]} style={{ height: `${s.value}%` }} />
+                  <div className={'w-2 rounded-full ' + toneBar[s.tone]} style={{ height: `${Math.max(s.value, 4)}%` }} />
                 </div>
                 <span className="text-[9px] font-semibold text-ink-400">{s.day}</span>
               </div>

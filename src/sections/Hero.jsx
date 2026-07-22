@@ -2,9 +2,13 @@ import { useState } from 'react'
 import { CheckCircle, Bell, TrendingUp, SkipForward, RefreshCw } from '../icons.jsx'
 import { Card, Illustration, UserChip } from '../ui.jsx'
 import { useApp } from '../store.jsx'
+import { user } from '../data.js'
 import { useNow, formatCountdown, isOverdue, istTimeLabel, addMinutesToTime } from '../time.js'
 
 export function HeroCard({ className = '' }) {
+  const { glance } = useApp()
+  const firstName = (user.name || '').trim().split(' ')[0] || 'there'
+  const hasData = glance.total > 0
   return (
     <Card className={'relative flex overflow-hidden ' + className}>
       <div className="flex flex-1 items-center gap-2 py-3 pl-5 pr-3">
@@ -12,15 +16,17 @@ export function HeroCard({ className = '' }) {
           <h1 className="text-2xl font-extrabold leading-tight text-ink-900">
             Good morning,
             <br />
-            Kaushik! <span>👋</span>
+            {firstName}! <span>👋</span>
           </h1>
           <p className="mt-1.5 text-[13px] text-ink-500">Stay consistent, stay healthy.</p>
 
           <div className="mt-4 inline-flex items-center gap-2.5 rounded-2xl bg-brand-50/80 px-3 py-2">
             <span className="grid h-8 w-8 place-items-center rounded-xl bg-white text-base">🌱</span>
             <div className="leading-tight">
-              <div className="text-[11px] font-medium text-ink-500">You're doing great!</div>
-              <div className="text-[12px] font-bold text-brand-600">87% adherence this week</div>
+              <div className="text-[11px] font-medium text-ink-500">{hasData ? "You're doing great!" : 'Welcome to MediTrack'}</div>
+              <div className="text-[12px] font-bold text-brand-600">
+                {hasData ? `${glance.adherence}% adherence today` : 'Add a member to get started'}
+              </div>
             </div>
             <TrendingUp className="ml-1 h-4 w-4 text-brand-400" />
           </div>
