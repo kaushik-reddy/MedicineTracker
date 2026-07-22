@@ -60,6 +60,16 @@ export function AppProvider({ children }) {
     setNotice({ id: ++toastSeq, message, tone })
   }, [])
 
+  // Surface Supabase write failures so silent data loss becomes visible.
+  useEffect(() => {
+    const onError = (e) => {
+      const label = e.detail?.label || 'save'
+      showToast(`Couldn't save (${label}) — data may not persist`, 'warn')
+    }
+    window.addEventListener('supabase:error', onError)
+    return () => window.removeEventListener('supabase:error', onError)
+  }, [showToast])
+
   const openModal = useCallback((type) => setModal(type), [])
   const closeModal = useCallback(() => setModal(null), [])
 
@@ -79,6 +89,12 @@ export function AppProvider({ children }) {
   const openMedDetails = useCallback((id) => {
     setConfirm({ medId: id })
     setModal('med-details')
+  }, [])
+
+  // Open the edit form for a specific medication.
+  const openEditMed = useCallback((id) => {
+    setConfirm({ medId: id })
+    setModal('edit-medication')
   }, [])
 
   const [restockName, setRestockName] = useState(null)
@@ -381,6 +397,41 @@ export function AppProvider({ children }) {
     [showToast],
   )
 
+  // Edit an existing medication. `fields.quantity` is optional: blank/undefined
+  // leaves the inventory untouched; a number updates the linked stock item.
+  const editMedication = useCallback(
+    (id, fields) => {
+      const { quantity, ...rest } = fields
+      let updated = null
+      setMedications((meds) =>
+        meds.map((m) => {
+          if (m.id !== id) return m
+          updated = { ...m, ...rest, label: hourLabel(rest.time ?? m.time) }
+          return updated
+        }),
+      )
+      if (!updated) return
+      db.upsertMedication(updated)
+
+      const qty = Number(quantity)
+      if (quantity !== '' && quantity != null && Number.isFinite(qty) && qty >= 0) {
+        const perDay = updated.frequency === 'Twice daily' ? 2 : updated.frequency === 'Weekly' ? 1 / 7 : 1
+        const days = perDay > 0 ? Math.max(0, Math.round(qty / perDay)) : qty
+        let invUpdated = null
+        setInventory((inv) =>
+          inv.map((it) => {
+            if (it.medicationId !== id) return it
+            invUpdated = { ...it, days, pct: 100, detail: `${qty} ${qty === 1 ? 'unit' : 'units'} in stock` }
+            return invUpdated
+          }),
+        )
+        if (invUpdated) db.upsertInventory(invUpdated)
+      }
+      showToast(`${updated.name} updated`, 'brand')
+    },
+    [showToast],
+  )
+
   const setMedImage = useCallback((id, image) => {
     let next = null
     setMedications((meds) =>
@@ -451,6 +502,7 @@ export function AppProvider({ children }) {
     requestConfirm,
     openScheduleMed,
     openMedDetails,
+    openEditMed,
     openRestock,
     restockName,
     addUser,
@@ -468,6 +520,7 @@ export function AppProvider({ children }) {
     setMedImage,
     restock,
     addMedication,
+    editMedication,
     logDose,
     setReminder,
     exportReport,

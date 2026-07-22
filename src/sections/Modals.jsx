@@ -149,27 +149,29 @@ function LogDose() {
   )
 }
 
-function AddMedication() {
-  const { addMedication, closeModal, users } = useApp()
+function MedicationForm({ mode = 'add', med = null }) {
+  const { addMedication, editMedication, closeModal, users } = useApp()
+  const isEdit = mode === 'edit'
+  const info = med?.info || {}
   const [form, setForm] = useState({
-    name: '',
-    dosage: '',
-    unit: '1 tablet',
-    frequency: 'Daily',
-    activeDays: WEEKDAYS.map((d) => d.key),
-    startDate: todayISO(),
+    name: med?.name ?? '',
+    dosage: med?.dosage ?? '',
+    unit: med?.unit ?? '1 tablet',
+    frequency: med?.frequency ?? 'Daily',
+    activeDays: med?.activeDays?.length ? med.activeDays : WEEKDAYS.map((d) => d.key),
+    startDate: med?.startDate ?? todayISO(),
     quantity: '',
-    time: '08:00 AM',
-    tone: 'brand',
-    image: null,
-    user: users[0]?.id ?? '',
-    category: '',
-    purpose: '',
-    instructions: '',
-    sideEffects: '',
-    warnings: '',
+    time: med?.time ?? '08:00 AM',
+    tone: med?.tone ?? 'brand',
+    image: med?.image ?? null,
+    user: med?.user ?? users[0]?.id ?? '',
+    category: info.category ?? '',
+    purpose: info.purpose ?? '',
+    instructions: info.instructions ?? '',
+    sideEffects: info.sideEffects ?? '',
+    warnings: info.warnings ?? '',
   })
-  const [showInfo, setShowInfo] = useState(false)
+  const [showInfo, setShowInfo] = useState(isEdit)
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }))
   const toggleDay = (key) =>
     setForm((f) => {
@@ -178,14 +180,65 @@ function AddMedication() {
       return { ...f, activeDays: next.length ? next : f.activeDays } // keep at least one day
     })
   const qtyNum = Number(form.quantity)
-  const valid = form.name.trim() && form.dosage.trim() && qtyNum > 0
+  // Quantity is required when adding; optional when editing (blank = leave stock as-is).
+  const valid = form.name.trim() && form.dosage.trim() && (isEdit || qtyNum > 0)
   const tones = [
     ['brand', 'bg-brand-500'],
     ['accent', 'bg-accent-500'],
     ['coral', 'bg-coral-500'],
   ]
+  const submit = () => {
+    if (!valid) return
+    const infoObj = {
+      category: form.category.trim() || DEFAULT_MED_INFO.category,
+      purpose: form.purpose.trim() || DEFAULT_MED_INFO.purpose,
+      instructions: form.instructions.trim() || DEFAULT_MED_INFO.instructions,
+      sideEffects: form.sideEffects.trim() || DEFAULT_MED_INFO.sideEffects,
+      warnings: form.warnings.trim() || DEFAULT_MED_INFO.warnings,
+    }
+    if (isEdit) {
+      editMedication(med.id, {
+        name: form.name,
+        dosage: form.dosage,
+        unit: form.unit,
+        frequency: form.frequency,
+        activeDays: form.activeDays,
+        startDate: form.startDate,
+        time: form.time,
+        tone: form.tone,
+        image: form.image,
+        user: form.user,
+        info: infoObj,
+        quantity: form.quantity, // '' = don't touch inventory
+      })
+    } else {
+      addMedication({
+        name: form.name,
+        sub: 'Custom',
+        dosage: form.dosage,
+        unit: form.unit,
+        frequency: form.frequency,
+        activeDays: form.activeDays,
+        startDate: form.startDate,
+        quantity: qtyNum,
+        time: form.time,
+        period: 'am',
+        status: 'Upcoming',
+        tone: form.tone,
+        image: form.image,
+        user: form.user,
+        info: infoObj,
+      })
+    }
+    closeModal()
+  }
   return (
-    <Shell icon={Pill} tone="accent" title="Add Medication" subtitle="Add a new medication to your list">
+    <Shell
+      icon={Pill}
+      tone="accent"
+      title={isEdit ? 'Edit Medication' : 'Add Medication'}
+      subtitle={isEdit ? 'Update the details of this medication' : 'Add a new medication to your list'}
+    >
       <div className="max-h-[62vh] space-y-3 overflow-y-auto no-scrollbar pr-0.5">
         <div>
           <div className={label}>Name</div>
@@ -256,20 +309,24 @@ function AddMedication() {
         </div>
 
         <div>
-          <div className={label}>Quantity in stock</div>
+          <div className={label}>{isEdit ? 'Update stock' : 'Quantity in stock'}</div>
           <div className="mt-1 flex items-center gap-2">
             <input
               type="number"
               min="0"
               inputMode="numeric"
               className={field}
-              placeholder="e.g. 30"
+              placeholder={isEdit ? 'Leave blank to keep current' : 'e.g. 30'}
               value={form.quantity}
               onChange={set('quantity')}
             />
             <span className="shrink-0 text-[12px] font-semibold text-ink-400">units</span>
           </div>
-          <p className="mt-1 text-[11px] text-ink-400">How many doses you currently have — used to track your inventory.</p>
+          <p className="mt-1 text-[11px] text-ink-400">
+            {isEdit
+              ? 'Enter a new count to update inventory, or leave blank to keep it unchanged.'
+              : 'How many doses you currently have — used to track your inventory.'}
+          </p>
         </div>
 
         <div>
@@ -374,39 +431,20 @@ function AddMedication() {
           )}
         </div>
       </div>
-      <Actions
-        tone="accent"
-        confirmLabel="Add medication"
-        onConfirm={() => {
-          if (!valid) return
-          addMedication({
-            name: form.name,
-            sub: 'Custom',
-            dosage: form.dosage,
-            unit: form.unit,
-            frequency: form.frequency,
-            activeDays: form.activeDays,
-            startDate: form.startDate,
-            quantity: qtyNum,
-            time: form.time,
-            period: 'am',
-            status: 'Upcoming',
-            tone: form.tone,
-            image: form.image,
-            user: form.user,
-            info: {
-              category: form.category.trim() || DEFAULT_MED_INFO.category,
-              purpose: form.purpose.trim() || DEFAULT_MED_INFO.purpose,
-              instructions: form.instructions.trim() || DEFAULT_MED_INFO.instructions,
-              sideEffects: form.sideEffects.trim() || DEFAULT_MED_INFO.sideEffects,
-              warnings: form.warnings.trim() || DEFAULT_MED_INFO.warnings,
-            },
-          })
-          closeModal()
-        }}
-      />
+      <Actions tone="accent" confirmLabel={isEdit ? 'Save changes' : 'Add medication'} onConfirm={submit} />
     </Shell>
   )
+}
+
+function AddMedication() {
+  return <MedicationForm mode="add" />
+}
+
+function EditMedication() {
+  const { confirm, medications } = useApp()
+  const med = medications.find((m) => m.id === (confirm && confirm.medId))
+  if (!med) return null
+  return <MedicationForm mode="edit" med={med} key={med.id} />
 }
 
 function SetReminder() {
@@ -811,7 +849,7 @@ function ImageUploader({ med, onPick, size = 'h-14 w-14' }) {
 }
 
 function MedDetails() {
-  const { confirm, medications, openScheduleMed, requestConfirm, setMedImage, closeModal, usersById } = useApp()
+  const { confirm, medications, openScheduleMed, openEditMed, requestConfirm, setMedImage, closeModal, usersById } = useApp()
   const med = medications.find((m) => m.id === (confirm && confirm.medId))
   if (!med) return null
   const owner = usersById[med.user]
@@ -913,6 +951,12 @@ function MedDetails() {
         </div>
 
         <div className="flex gap-3 p-6 pt-4">
+          <button
+            onClick={() => openEditMed(med.id)}
+            className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-line py-2.5 text-[13px] font-bold text-ink-600 hover:bg-page transition-colors"
+          >
+            <Note className="h-4 w-4" /> Edit
+          </button>
           <button
             onClick={() => openScheduleMed(med.id)}
             className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-brand-500 py-2.5 text-[13px] font-bold text-white hover:bg-brand-600 transition-colors"
@@ -1333,6 +1377,7 @@ function HistoryLog() {
 const MODALS = {
   'log-dose': LogDose,
   'add-medication': AddMedication,
+  'edit-medication': EditMedication,
   'set-reminder': SetReminder,
   'export-report': ExportReport,
   'full-schedule': FullSchedule,

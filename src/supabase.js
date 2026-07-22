@@ -176,7 +176,12 @@ export async function loadAll() {
 // ---- Writes (fire-and-forget; log errors, never throw) --------------------
 
 function report(label, error) {
-  if (error) console.warn(`[supabase] ${label} failed:`, error.message)
+  if (error) {
+    console.warn(`[supabase] ${label} failed:`, error.message)
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('supabase:error', { detail: { label, message: error.message } }))
+    }
+  }
 }
 
 export const db = {
