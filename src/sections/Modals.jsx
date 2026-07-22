@@ -30,6 +30,27 @@ const field =
   'w-full rounded-xl border border-line bg-white px-3 py-2.5 text-[13px] font-medium text-ink-900 outline-none focus:border-brand-400 transition-colors'
 const label = 'text-[12px] font-semibold text-ink-500'
 
+// Themed selectable-chip styles (used for frequency + weekday pickers).
+const chipOn = 'border-brand-400 bg-brand-50 text-brand-700'
+const chipOff = 'border-line text-ink-500 hover:bg-page'
+
+const FREQUENCIES = ['Daily', 'Twice daily', 'Weekly']
+const WEEKDAYS = [
+  { key: 'Sun', short: 'S' },
+  { key: 'Mon', short: 'M' },
+  { key: 'Tue', short: 'T' },
+  { key: 'Wed', short: 'W' },
+  { key: 'Thu', short: 'T' },
+  { key: 'Fri', short: 'F' },
+  { key: 'Sat', short: 'S' },
+]
+
+// Today (IST) as a yyyy-mm-dd string for the native date input.
+function todayISO() {
+  const d = istCalendarDate()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
 const softMap = {
   brand: 'bg-brand-50 text-brand-600',
   accent: 'bg-violet-50 text-accent-600',
@@ -134,13 +155,23 @@ function AddMedication() {
     dosage: '',
     unit: '1 tablet',
     frequency: 'Daily',
+    activeDays: WEEKDAYS.map((d) => d.key),
+    startDate: todayISO(),
+    quantity: '',
     time: '08:00 AM',
     tone: 'brand',
     image: null,
     user: users[0]?.id ?? '',
   })
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }))
-  const valid = form.name.trim() && form.dosage.trim()
+  const toggleDay = (key) =>
+    setForm((f) => {
+      const has = f.activeDays.includes(key)
+      const next = has ? f.activeDays.filter((d) => d !== key) : [...f.activeDays, key]
+      return { ...f, activeDays: next.length ? next : f.activeDays } // keep at least one day
+    })
+  const qtyNum = Number(form.quantity)
+  const valid = form.name.trim() && form.dosage.trim() && qtyNum > 0
   const tones = [
     ['brand', 'bg-brand-500'],
     ['accent', 'bg-accent-500'],
@@ -148,7 +179,7 @@ function AddMedication() {
   ]
   return (
     <Shell icon={Pill} tone="accent" title="Add Medication" subtitle="Add a new medication to your list">
-      <div className="space-y-3">
+      <div className="max-h-[62vh] space-y-3 overflow-y-auto no-scrollbar pr-0.5">
         <div>
           <div className={label}>Name</div>
           <input className={field + ' mt-1'} placeholder="e.g. Ibuprofen" value={form.name} onChange={set('name')} />
@@ -163,20 +194,77 @@ function AddMedication() {
             <input className={field + ' mt-1'} value={form.unit} onChange={set('unit')} />
           </div>
         </div>
+
+        <div>
+          <div className={label}>Frequency</div>
+          <div className="mt-1.5 grid grid-cols-3 gap-2">
+            {FREQUENCIES.map((f) => (
+              <button
+                key={f}
+                type="button"
+                onClick={() => setForm((s) => ({ ...s, frequency: f }))}
+                className={
+                  'rounded-xl border py-2 text-[12px] font-bold transition-colors ' +
+                  (form.frequency === f ? chipOn : chipOff)
+                }
+              >
+                {f}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <div className={label}>Repeat on</div>
+          <div className="mt-1.5 grid grid-cols-7 gap-1.5">
+            {WEEKDAYS.map((d, i) => {
+              const on = form.activeDays.includes(d.key)
+              return (
+                <button
+                  key={i}
+                  type="button"
+                  title={d.key}
+                  onClick={() => toggleDay(d.key)}
+                  className={
+                    'grid h-9 place-items-center rounded-lg border text-[12px] font-bold transition-colors ' +
+                    (on ? chipOn : chipOff)
+                  }
+                >
+                  {d.short}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <div className={label}>Frequency</div>
-            <select className={field + ' mt-1'} value={form.frequency} onChange={set('frequency')}>
-              <option>Daily</option>
-              <option>Twice daily</option>
-              <option>Weekly</option>
-            </select>
+            <div className={label}>Start tracking</div>
+            <input type="date" className={field + ' mt-1'} value={form.startDate} onChange={set('startDate')} />
           </div>
           <div>
             <div className={label}>Time</div>
             <input className={field + ' mt-1'} value={form.time} onChange={set('time')} />
           </div>
         </div>
+
+        <div>
+          <div className={label}>Quantity in stock</div>
+          <div className="mt-1 flex items-center gap-2">
+            <input
+              type="number"
+              min="0"
+              inputMode="numeric"
+              className={field}
+              placeholder="e.g. 30"
+              value={form.quantity}
+              onChange={set('quantity')}
+            />
+            <span className="shrink-0 text-[12px] font-semibold text-ink-400">units</span>
+          </div>
+          <p className="mt-1 text-[11px] text-ink-400">How many doses you currently have — used to track your inventory.</p>
+        </div>
+
         <div>
           <div className={label}>Member</div>
           <div className="mt-1.5 flex gap-2">
@@ -228,6 +316,9 @@ function AddMedication() {
             dosage: form.dosage,
             unit: form.unit,
             frequency: form.frequency,
+            activeDays: form.activeDays,
+            startDate: form.startDate,
+            quantity: qtyNum,
             time: form.time,
             period: 'am',
             status: 'Upcoming',
@@ -671,6 +762,13 @@ function MedDetails() {
     ['Frequency', med.frequency],
     ['Time', med.time],
   ]
+  if (med.activeDays && med.activeDays.length && med.activeDays.length < 7) {
+    rows.push(['Repeats on', med.activeDays.join(', ')])
+  }
+  if (med.startDate) {
+    const [y, mo, d] = String(med.startDate).split('-').map(Number)
+    if (y && mo && d) rows.push(['Starts', formatLongDate(new Date(y, mo - 1, d))])
+  }
 
   const info = med.info || {
     category: 'Medication',

@@ -356,13 +356,18 @@ export function AppProvider({ children }) {
     (med) => {
       const id = newId()
       const uid = med.user || null
+      // Turn the user's real stock count into days-of-supply for the inventory ring.
+      const qty = Math.max(0, Math.round(Number(med.quantity) || 0))
+      const perDay = med.frequency === 'Twice daily' ? 2 : med.frequency === 'Weekly' ? 1 / 7 : 1
+      const days = perDay > 0 ? Math.max(0, Math.round(qty / perDay)) : qty
       const record = { ...med, id, user: uid, label: hourLabel(med.time), taken: false, scheduledToday: true }
+      delete record.quantity
       const invItem = {
         id: newId(),
         medicationId: id,
         name: med.name,
-        detail: `${med.unit} ${med.frequency.toLowerCase()}`,
-        days: 30,
+        detail: `${qty} ${qty === 1 ? 'unit' : 'units'} in stock`,
+        days,
         pct: 100,
         tone: med.tone,
         user: uid,

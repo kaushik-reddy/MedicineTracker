@@ -71,7 +71,8 @@ const medToRow = (m) => ({
   taken: !!m.taken,
   skipped: !!m.skipped,
   scheduled_today: m.scheduledToday !== false,
-  info: m.info ?? {},
+  // Fold scheduling metadata into the existing jsonb column (no schema change).
+  info: { ...(m.info ?? {}), _startDate: m.startDate ?? null, _activeDays: m.activeDays ?? null },
 })
 const rowToMed = (r) => ({
   id: r.id,
@@ -89,8 +90,18 @@ const rowToMed = (r) => ({
   taken: !!r.taken,
   skipped: !!r.skipped,
   scheduledToday: r.scheduled_today !== false,
-  info: r.info ?? undefined,
+  ...unpackInfo(r.info),
 })
+
+// Split the persisted info blob back into details (`info`) + scheduling fields.
+function unpackInfo(raw) {
+  const { _startDate, _activeDays, ...info } = raw && typeof raw === 'object' ? raw : {}
+  return {
+    startDate: _startDate ?? undefined,
+    activeDays: _activeDays ?? undefined,
+    info: Object.keys(info).length ? info : undefined,
+  }
+}
 
 const invToRow = (it) => ({
   id: it.id,
