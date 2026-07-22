@@ -390,8 +390,9 @@ export function AppProvider({ children }) {
       }
       setMedications((m) => [...m, record])
       setInventory((inv) => [...inv, invItem])
-      db.upsertMedication(record)
-      db.upsertInventory(invItem)
+      // Insert the medication first, then its inventory — the inventory row has a
+      // foreign key to medications(id), so it must exist before the linked insert.
+      db.upsertMedication(record).then(() => db.upsertInventory(invItem))
       showToast(`${med.name} added for ${userName(uid)}`, 'accent')
     },
     [showToast],
