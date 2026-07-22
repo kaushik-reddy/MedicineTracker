@@ -504,14 +504,34 @@ export function AppProvider({ children }) {
       if (quantity !== '' && quantity != null && Number.isFinite(qty) && qty >= 0) {
         const perDay = updated.frequency === 'Twice daily' ? 2 : updated.frequency === 'Weekly' ? 1 / 7 : 1
         const days = perDay > 0 ? Math.max(0, Math.round(qty / perDay)) : qty
+        const detail = `${qty} ${qty === 1 ? 'unit' : 'units'} in stock`
         let invUpdated = null
-        setInventory((inv) =>
-          inv.map((it) => {
-            if (it.medicationId !== id) return it
-            invUpdated = { ...it, days, pct: 100, detail: `${qty} ${qty === 1 ? 'unit' : 'units'} in stock` }
+        setInventory((inv) => {
+          let found = false
+          // Match by explicit link first; fall back to name+member for older rows
+          // that were created before medications and inventory were linked.
+          const next = inv.map((it) => {
+            const linked = it.medicationId && it.medicationId === id
+            const byName = !it.medicationId && it.name === updated.name && it.user === updated.user
+            if (!linked && !byName) return it
+            found = true
+            invUpdated = { ...it, medicationId: id, days, pct: 100, detail }
             return invUpdated
-          }),
-        )
+          })
+          if (found) return next
+          // No stock row yet — create one linked to this medication.
+          invUpdated = {
+            id: newId(),
+            medicationId: id,
+            name: updated.name,
+            detail,
+            days,
+            pct: 100,
+            tone: updated.tone,
+            user: updated.user,
+          }
+          return [...next, invUpdated]
+        })
         if (invUpdated) db.upsertInventory(invUpdated)
       }
       showToast(`${updated.name} updated`, 'brand')

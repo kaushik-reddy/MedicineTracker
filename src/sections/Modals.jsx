@@ -150,9 +150,13 @@ function LogDose() {
 }
 
 function MedicationForm({ mode = 'add', med = null }) {
-  const { addMedication, editMedication, closeModal, users } = useApp()
+  const { addMedication, editMedication, closeModal, users, inventory } = useApp()
   const isEdit = mode === 'edit'
   const info = med?.info || {}
+  // For edit, pre-fill the current stock so the user can see and adjust it.
+  const invItem = med ? inventory.find((it) => it.medicationId === med.id || it.name === med.name) : null
+  const perDayInit = med?.frequency === 'Twice daily' ? 2 : med?.frequency === 'Weekly' ? 1 / 7 : 1
+  const initialQty = isEdit && invItem ? String(Math.max(0, Math.round(invItem.days * perDayInit))) : ''
   const [form, setForm] = useState({
     name: med?.name ?? '',
     dosage: med?.dosage ?? '',
@@ -160,7 +164,7 @@ function MedicationForm({ mode = 'add', med = null }) {
     frequency: med?.frequency ?? 'Daily',
     activeDays: med?.activeDays?.length ? med.activeDays : WEEKDAYS.map((d) => d.key),
     startDate: med?.startDate ?? todayISO(),
-    quantity: '',
+    quantity: initialQty,
     time: med?.time ?? '08:00 AM',
     tone: med?.tone ?? 'brand',
     image: med?.image ?? null,
@@ -309,7 +313,7 @@ function MedicationForm({ mode = 'add', med = null }) {
         </div>
 
         <div>
-          <div className={label}>{isEdit ? 'Update stock' : 'Quantity in stock'}</div>
+          <div className={label}>{isEdit ? 'Stock in hand' : 'Quantity in stock'}</div>
           <div className="mt-1 flex items-center gap-2">
             <input
               type="number"
@@ -324,7 +328,7 @@ function MedicationForm({ mode = 'add', med = null }) {
           </div>
           <p className="mt-1 text-[11px] text-ink-400">
             {isEdit
-              ? 'Enter a new count to update inventory, or leave blank to keep it unchanged.'
+              ? 'Current stock — change the count to update your inventory.'
               : 'How many doses you currently have — used to track your inventory.'}
           </p>
         </div>
