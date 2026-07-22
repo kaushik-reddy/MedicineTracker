@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useCallback, useMemo, useRef, useEffect } from 'react'
 import { medications as medsSeed, inventory as invSeed, history as histSeed, users as usersSeed } from './data.js'
-import { timeAfterNow, istTimeLabel } from './time.js'
+import { timeAfterNow, istTimeLabel, istCalendarDate, addDays, medActiveOn } from './time.js'
 import {
   db,
   loadAll,
@@ -211,7 +211,17 @@ export function AppProvider({ children }) {
   const schedule = useMemo(
     () =>
       medications
-        .filter((m) => m.scheduledToday)
+        .filter((m) => m.scheduledToday && medActiveOn(m, istCalendarDate()))
+        .slice()
+        .sort((a, b) => parseMins(a.time) - parseMins(b.time)),
+    [medications],
+  )
+
+  // Same list, but for tomorrow's calendar day (repeat days may differ).
+  const scheduleTomorrow = useMemo(
+    () =>
+      medications
+        .filter((m) => m.scheduledToday && medActiveOn(m, addDays(istCalendarDate(), 1)))
         .slice()
         .sort((a, b) => parseMins(a.time) - parseMins(b.time)),
     [medications],
@@ -556,6 +566,7 @@ export function AppProvider({ children }) {
     inventory,
     history,
     schedule,
+    scheduleTomorrow,
     nextDose,
     glance,
     users,

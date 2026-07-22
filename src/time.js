@@ -120,3 +120,23 @@ export function formatShortDate(d) {
 export function emptyByLabel(days) {
   return formatShortDate(addDays(istCalendarDate(), days))
 }
+
+// Weekday keys must match the picker in the Add/Edit medication form (Sun..Sat).
+export const DAY_KEYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+
+// Is this medication due on the given calendar date?
+// Honours the chosen start date and the selected repeat weekdays.
+export function medActiveOn(m, date) {
+  if (m.startDate) {
+    const [y, mo, d] = String(m.startDate).split('-').map(Number)
+    if (y && mo && d) {
+      const start = new Date(y, mo - 1, d)
+      const day = new Date(date.getFullYear(), date.getMonth(), date.getDate())
+      if (day < start) return false // hasn't started yet
+    }
+  }
+  if (Array.isArray(m.activeDays) && m.activeDays.length > 0 && m.activeDays.length < 7) {
+    if (!m.activeDays.includes(DAY_KEYS[date.getDay()])) return false // not a repeat day
+  }
+  return true
+}

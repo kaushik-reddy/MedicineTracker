@@ -8,11 +8,11 @@ const glanceIcon = { clock: Clock, check: CheckCircle, trend: TrendingUp }
 const CARD = 150
 const GAP = 16
 
-function buildSlots(schedule) {
+function buildSlots(schedule, scheduleTomorrow) {
   const slots = []
   schedule.forEach((m) => slots.push({ key: 't0-' + m.id, type: 'dose', med: m, day: 'Today' }))
   slots.push({ key: 'done-0', type: 'done', day: 'Today' })
-  schedule.forEach((m) =>
+  scheduleTomorrow.forEach((m) =>
     slots.push({ key: 't1-' + m.id, type: 'dose', med: { ...m, taken: false, skipped: false }, day: 'Tomorrow' }),
   )
   slots.push({ key: 'done-1', type: 'done', day: 'Tomorrow' })
@@ -38,8 +38,8 @@ function Node({ state }) {
 }
 
 export function ScheduleCard({ className = '' }) {
-  const { schedule, nextDose, openModal, usersById } = useApp()
-  const slots = buildSlots(schedule)
+  const { schedule, scheduleTomorrow, nextDose, openModal, usersById } = useApp()
+  const slots = buildSlots(schedule, scheduleTomorrow)
 
   let activeIndex = schedule.findIndex((m) => !m.taken && !m.skipped)
   if (activeIndex === -1) activeIndex = schedule.length // "all done today" card

@@ -24,7 +24,7 @@ import {
 } from '../icons.jsx'
 import { PillGlyph, MedGlyph, UserAvatar } from '../ui.jsx'
 import { ScheduleTimeline, Calendar } from './ScheduleView.jsx'
-import { useNow, istCalendarDate, sameDay, addDays, formatLongDate } from '../time.js'
+import { useNow, istCalendarDate, sameDay, addDays, formatLongDate, medActiveOn } from '../time.js'
 import { DEFAULT_MED_INFO } from '../data.js'
 
 const field =
@@ -577,7 +577,7 @@ function FullSchedule() {
   const isPast = selected < today && !isToday
 
   // Build the items for the selected day. Today is live; other days are derived.
-  const baseMeds = medications.filter((m) => m.scheduledToday)
+  const baseMeds = medications.filter((m) => m.scheduledToday && medActiveOn(m, selected))
   const items = isToday
     ? schedule
     : baseMeds.map((m) => ({ ...m, taken: isPast, skipped: false }))
