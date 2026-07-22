@@ -25,6 +25,7 @@ import {
 import { PillGlyph, MedGlyph, UserAvatar } from '../ui.jsx'
 import { ScheduleTimeline, Calendar } from './ScheduleView.jsx'
 import { useNow, istCalendarDate, sameDay, addDays, formatLongDate } from '../time.js'
+import { DEFAULT_MED_INFO } from '../data.js'
 
 const field =
   'w-full rounded-xl border border-line bg-white px-3 py-2.5 text-[13px] font-medium text-ink-900 outline-none focus:border-brand-400 transition-colors'
@@ -162,7 +163,13 @@ function AddMedication() {
     tone: 'brand',
     image: null,
     user: users[0]?.id ?? '',
+    category: '',
+    purpose: '',
+    instructions: '',
+    sideEffects: '',
+    warnings: '',
   })
+  const [showInfo, setShowInfo] = useState(false)
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }))
   const toggleDay = (key) =>
     setForm((f) => {
@@ -304,6 +311,68 @@ function AddMedication() {
             <span className="text-[11px] text-ink-400">Upload photo (optional)</span>
           </div>
         </div>
+
+        <div className="rounded-2xl border border-line p-3">
+          <button
+            type="button"
+            onClick={() => setShowInfo((v) => !v)}
+            className="flex w-full items-center justify-between text-[12px] font-bold text-ink-600"
+          >
+            <span>
+              Additional information <span className="font-medium text-ink-400">(optional)</span>
+            </span>
+            <ChevronRight className={'h-4 w-4 transition-transform ' + (showInfo ? 'rotate-90' : '')} />
+          </button>
+          {showInfo && (
+            <div className="mt-3 space-y-3">
+              <div>
+                <div className={label}>Category</div>
+                <input
+                  className={field + ' mt-1'}
+                  placeholder="e.g. Pain relief"
+                  value={form.category}
+                  onChange={set('category')}
+                />
+              </div>
+              <div>
+                <div className={label}>Purpose</div>
+                <textarea
+                  className={field + ' mt-1 min-h-[56px] resize-none'}
+                  placeholder="What is this medication for?"
+                  value={form.purpose}
+                  onChange={set('purpose')}
+                />
+              </div>
+              <div>
+                <div className={label}>How to take</div>
+                <textarea
+                  className={field + ' mt-1 min-h-[56px] resize-none'}
+                  placeholder="e.g. Take with food, twice a day"
+                  value={form.instructions}
+                  onChange={set('instructions')}
+                />
+              </div>
+              <div>
+                <div className={label}>Side effects</div>
+                <textarea
+                  className={field + ' mt-1 min-h-[56px] resize-none'}
+                  placeholder="Possible side effects"
+                  value={form.sideEffects}
+                  onChange={set('sideEffects')}
+                />
+              </div>
+              <div>
+                <div className={label}>Warnings</div>
+                <textarea
+                  className={field + ' mt-1 min-h-[56px] resize-none'}
+                  placeholder="Precautions or interactions"
+                  value={form.warnings}
+                  onChange={set('warnings')}
+                />
+              </div>
+            </div>
+          )}
+        </div>
       </div>
       <Actions
         tone="accent"
@@ -325,6 +394,13 @@ function AddMedication() {
             tone: form.tone,
             image: form.image,
             user: form.user,
+            info: {
+              category: form.category.trim() || DEFAULT_MED_INFO.category,
+              purpose: form.purpose.trim() || DEFAULT_MED_INFO.purpose,
+              instructions: form.instructions.trim() || DEFAULT_MED_INFO.instructions,
+              sideEffects: form.sideEffects.trim() || DEFAULT_MED_INFO.sideEffects,
+              warnings: form.warnings.trim() || DEFAULT_MED_INFO.warnings,
+            },
           })
           closeModal()
         }}
