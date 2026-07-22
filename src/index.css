@@ -1,0 +1,86 @@
+@import 'tailwindcss';
+
+@theme {
+  --font-sans: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
+
+  /* Brand greens */
+  --color-brand-50: #edfaf3;
+  --color-brand-100: #d6f4e4;
+  --color-brand-200: #ace9cb;
+  --color-brand-300: #74d8ab;
+  --color-brand-400: #3ec489;
+  --color-brand-500: #16a970;
+  --color-brand-600: #0f8a5c;
+  --color-brand-700: #0d6e4b;
+  --color-brand-800: #0e573d;
+  --color-brand-900: #0c4733;
+
+  /* Accent purple (adherence / streak) */
+  --color-accent-400: #a78bfa;
+  --color-accent-500: #8b5cf6;
+  --color-accent-600: #7c3aed;
+
+  /* Warm accents */
+  --color-warn-400: #fbbf24;
+  --color-warn-500: #f59e0b;
+  --color-coral-400: #fb7185;
+  --color-coral-500: #f43f5e;
+
+  /* Neutrals */
+  --color-ink-900: #0f172a;
+  --color-ink-700: #334155;
+  --color-ink-500: #64748b;
+  --color-ink-400: #94a3b8;
+  --color-line: #eef1f5;
+  --color-page: #f4f8f5;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  background: var(--color-page);
+  color: var(--color-ink-900);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Thin scrollbars inside scrollable cards */
+.scroll-thin::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.scroll-thin::-webkit-scrollbar-thumb {
+  background: #d7e2da;
+  border-radius: 9999px;
+}
+
+/* Scrollable but with no visible scrollbar */
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
+}
+
+/* Date-change slide/fade used in the full-schedule modal */
+@keyframes slidein {
+  from {
+    opacity: 0;
+    transform: translateX(var(--slide, 12px));
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.animate-slide {
+  animation: slidein 0.22s ease;
+}
