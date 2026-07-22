@@ -16,6 +16,13 @@ const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 export const supabase = url && anonKey ? createClient(url, anonKey) : null
 export const hasSupabase = !!supabase
 
+if (!hasSupabase && typeof console !== 'undefined') {
+  console.warn(
+    '[supabase] Persistence is OFF — VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY are not set. ' +
+      'Data lives in memory only and is lost on refresh. Add them to .env (local) and Vercel (prod).',
+  )
+}
+
 // Ensure there is a signed-in session so RLS policies allow reads/writes.
 export async function ensureSession() {
   if (!supabase) return null
