@@ -1061,10 +1061,11 @@ function Restock() {
 }
 
 function LogSymptom() {
-  const { showToast, closeModal } = useApp()
+  const { logSymptom, closeModal } = useApp()
   const [text, setText] = useState('')
   const [severity, setSeverity] = useState('Mild')
-  const sevTone = { Mild: 'brand', Moderate: 'warn', Severe: 'coral' }
+  const [mood, setMood] = useState('🙂')
+  const moods = ['😀', '🙂', '😐', '🙁', '😣']
   const sevCls = {
     Mild: 'border-brand-400 bg-brand-50 text-brand-600',
     Moderate: 'border-amber-400 bg-amber-50 text-warn-500',
@@ -1081,6 +1082,23 @@ function LogSymptom() {
             value={text}
             onChange={(e) => setText(e.target.value)}
           />
+        </div>
+        <div>
+          <div className={label}>Mood</div>
+          <div className="mt-1.5 flex gap-2">
+            {moods.map((m) => (
+              <button
+                key={m}
+                onClick={() => setMood(m)}
+                className={
+                  'flex-1 rounded-xl border py-1.5 text-[20px] transition-colors ' +
+                  (mood === m ? 'border-accent-400 bg-violet-50' : 'border-line hover:bg-page')
+                }
+              >
+                {m}
+              </button>
+            ))}
+          </div>
         </div>
         <div>
           <div className={label}>Severity</div>
@@ -1104,8 +1122,7 @@ function LogSymptom() {
         tone="accent"
         confirmLabel="Log symptom"
         onConfirm={() => {
-          const name = text.trim() || 'Symptom'
-          showToast(`Logged · ${name} (${severity})`, sevTone[severity])
+          logSymptom({ name: text.trim() || 'Symptom', severity, mood })
           closeModal()
         }}
       />

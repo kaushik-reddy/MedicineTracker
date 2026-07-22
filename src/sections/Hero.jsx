@@ -6,7 +6,7 @@ import { user } from '../data.js'
 import { useNow, formatCountdown, isOverdue, istTimeLabel, addMinutesToTime } from '../time.js'
 
 export function HeroCard({ className = '' }) {
-  const { glance } = useApp()
+  const { glance, latestSymptom } = useApp()
   const firstName = (user.name || '').trim().split(' ')[0] || 'there'
   const hasData = glance.total > 0
   return (
@@ -30,6 +30,15 @@ export function HeroCard({ className = '' }) {
             </div>
             <TrendingUp className="ml-1 h-4 w-4 text-brand-400" />
           </div>
+
+          {latestSymptom && (
+            <div className="mt-2 flex items-center gap-1.5 text-[11px]">
+              <span className="text-[14px] leading-none">{latestSymptom.mood || '📝'}</span>
+              <span className="font-semibold text-ink-500">Recent:</span>
+              <span className="max-w-[150px] truncate font-bold text-accent-600">{latestSymptom.name}</span>
+              {latestSymptom.severity && <span className="text-ink-400">· {latestSymptom.severity}</span>}
+            </div>
+          )}
         </div>
 
         <Illustration

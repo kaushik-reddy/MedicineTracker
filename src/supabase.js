@@ -165,6 +165,22 @@ const rowToLog = (r) => ({
   tone: r.status === 'Skipped' ? 'warn' : 'brand',
 })
 
+const symptomToRow = (s) => ({
+  id: s.id,
+  member_id: s.user ?? null,
+  name: s.name,
+  severity: s.severity ?? null,
+  mood: s.mood ?? null,
+})
+const rowToSymptom = (r) => ({
+  id: r.id,
+  ts: r.logged_at ? Date.parse(r.logged_at) : Date.now(),
+  user: r.member_id ?? undefined,
+  name: r.name,
+  severity: r.severity ?? undefined,
+  mood: r.mood ?? undefined,
+})
+
 // ---- Reads ----------------------------------------------------------------
 
 // Load everything the app needs in one shot. Returns null if persistence is off
@@ -173,13 +189,14 @@ export async function loadAll() {
   if (!supabase) return null
   const session = await getSession()
   if (!session) return null
-  const [members, meds, inv, logs] = await Promise.all([
+  const [members, meds, inv, logs, symptoms] = await Promise.all([
     supabase.from('members').select('*').order('created_at', { ascending: true }),
     supabase.from('medications').select('*').order('created_at', { ascending: true }),
     supabase.from('inventory').select('*').order('created_at', { ascending: true }),
     supabase.from('dose_logs').select('*').order('logged_at', { ascending: false }).limit(600),
+    supabase.from('symptoms').select('*').order('logged_at', { ascending: false }).limit(200),
   ])
-  const firstError = members.error || meds.error || inv.error || logs.error
+  const firstError = members.error || meds.error || inv.error || logs.error || symptoms.error
   if (firstError) {
     console.warn('[supabase] load failed:', firstError.message)
     return null
@@ -189,6 +206,7 @@ export async function loadAll() {
     medications: (meds.data ?? []).map(rowToMed),
     inventory: (inv.data ?? []).map(rowToInv),
     history: (logs.data ?? []).map(rowToLog),
+    symptoms: (symptoms.data ?? []).map(rowToSymptom),
   }
 }
 
@@ -239,5 +257,10 @@ export const db = {
     if (!supabase) return
     const { error } = await supabase.from('dose_logs').insert(logToRow(entry))
     report('insert dose log', error)
+  },
+  async insertSymptom(entry) {
+    if (!supabase) return
+    const { error } = await supabase.from('symptoms').insert(symptomToRow(entry))
+    report('insert symptom', error)
   },
 }

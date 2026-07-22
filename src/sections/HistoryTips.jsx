@@ -1,11 +1,34 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { ChevronRight, Droplet, Clock } from '../icons.jsx'
 import { Card, SectionTitle, Illustration, toneBar, userTone, EmptyState, LoadingState } from '../ui.jsx'
 import { tips } from '../data.js'
 import { useApp } from '../store.jsx'
 
 export function HistoryCard({ className = '' }) {
-  const { history, openModal, usersById, dataLoading } = useApp()
+  const { history, symptoms, openModal, usersById, dataLoading } = useApp()
+
+  // Merge dose logs and symptom logs into one time-sorted feed.
+  const feed = useMemo(() => {
+    const doses = history.map((h) => ({ ...h, kind: 'dose' }))
+    const syms = symptoms.map((s) => ({
+      kind: 'symptom',
+      id: 'sym-' + s.id,
+      ts: s.ts,
+      name: s.name,
+      mood: s.mood,
+      severity: s.severity,
+      user: s.user,
+      date: s.ts ? new Date(s.ts).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : 'Today',
+    }))
+    return [...doses, ...syms].sort((a, b) => (b.ts || 0) - (a.ts || 0))
+  }, [history, symptoms])
+
+  const sevBadge = {
+    Mild: 'bg-brand-50 text-brand-600',
+    Moderate: 'bg-amber-50 text-warn-500',
+    Severe: 'bg-rose-50 text-coral-500',
+  }
+
   return (
     <Card className={'flex flex-col p-4 ' + className}>
       <div className="flex items-center justify-between">
@@ -19,20 +42,34 @@ export function HistoryCard({ className = '' }) {
       </div>
 
       <div className="mt-2 flex flex-1 flex-col overflow-y-auto no-scrollbar">
-        {dataLoading && history.length === 0 ? (
+        {dataLoading && feed.length === 0 ? (
           <LoadingState label="Loading history…" />
-        ) : history.length === 0 ? (
-          <EmptyState icon={Clock} title="No history yet" hint="Doses you take or skip will show up here." />
+        ) : feed.length === 0 ? (
+          <EmptyState icon={Clock} title="No history yet" hint="Doses you take or skip and symptoms you log will show up here." />
         ) : (
           <div className="relative pl-4">
             {/* vertical timeline rail */}
             <div className="absolute bottom-2 left-[5px] top-2 w-px bg-line" />
-            {history.map((h, i) => {
-              const taken = h.status === 'Taken'
+            {feed.map((h) => {
               const u = usersById[h.user]
               const uTone = (userTone[u?.tone] || userTone.brand).text
+              if (h.kind === 'symptom') {
+                return (
+                  <div key={h.id} className="relative flex items-center gap-2 py-[6px]">
+                    <span className="absolute -left-4 top-1/2 h-2.5 w-2.5 -translate-y-1/2 rounded-full bg-accent-500 ring-2 ring-white" />
+                    <span className="shrink-0 text-[13px] leading-none">{h.mood || '📝'}</span>
+                    <span className="max-w-[40%] shrink-0 truncate text-[12px] font-bold text-ink-900">{h.name}</span>
+                    {u && <span className={'shrink-0 truncate text-[10px] font-bold ' + uTone}>· {u.name}</span>}
+                    <span className="min-w-0 flex-1 truncate text-right text-[10px] font-semibold text-ink-400">{h.date}</span>
+                    <span className={'shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold ' + (sevBadge[h.severity] || sevBadge.Mild)}>
+                      {h.severity || 'Symptom'}
+                    </span>
+                  </div>
+                )
+              }
+              const taken = h.status === 'Taken'
               return (
-                <div key={i} className="relative flex items-center gap-2 py-[6px]">
+                <div key={h.id} className="relative flex items-center gap-2 py-[6px]">
                   <span
                     className={
                       'absolute -left-4 top-1/2 h-2.5 w-2.5 -translate-y-1/2 rounded-full ring-2 ring-white ' +

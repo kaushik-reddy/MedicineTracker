@@ -41,6 +41,7 @@ export function AppProvider({ children }) {
   const [inventory, setInventory] = useState(invSeed)
   const [history, setHistory] = useState(histSeed)
   const [users, setUsers] = useState(usersSeed)
+  const [symptoms, setSymptoms] = useState([])
   const [modal, setModal] = useState(null)
   const [notice, setNotice] = useState(null)
   const [confirm, setConfirm] = useState(null)
@@ -79,6 +80,7 @@ export function AppProvider({ children }) {
       setMedications([])
       setInventory([])
       setHistory([])
+      setSymptoms([])
       setDataLoading(false)
       return
     }
@@ -89,6 +91,7 @@ export function AppProvider({ children }) {
         setMedications(data.medications)
         setInventory(data.inventory)
         setHistory(data.history)
+        setSymptoms(data.symptoms ?? [])
       }
       setDataLoading(false)
     })
@@ -569,6 +572,22 @@ export function AppProvider({ children }) {
     [showToast],
   )
 
+  // Record how the user is feeling. Persists and shows up in Recent History.
+  const logSymptom = useCallback(
+    ({ name, severity, mood }) => {
+      const clean = (name || '').trim() || 'Symptom'
+      const entry = { id: newId(), ts: Date.now(), name: clean, severity: severity || 'Mild', mood: mood || '' }
+      setSymptoms((list) => [entry, ...list].slice(0, 200))
+      db.insertSymptom(entry)
+      const tone = severity === 'Severe' ? 'coral' : severity === 'Moderate' ? 'warn' : 'brand'
+      showToast(`Logged · ${clean}${mood ? ` ${mood}` : ''}`, tone)
+    },
+    [showToast],
+  )
+
+  // Most recent symptom entry (for the hero banner).
+  const latestSymptom = useMemo(() => symptoms[0] || null, [symptoms])
+
   const exportReport = useCallback(
     (format) => {
       let blob
@@ -596,6 +615,8 @@ export function AppProvider({ children }) {
     medications,
     inventory,
     history,
+    symptoms,
+    latestSymptom,
     schedule,
     scheduleTomorrow,
     nextDose,
@@ -639,6 +660,7 @@ export function AppProvider({ children }) {
     duplicateMedication,
     logDose,
     setReminder,
+    logSymptom,
     exportReport,
   }
 

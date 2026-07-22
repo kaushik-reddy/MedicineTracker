@@ -9,15 +9,15 @@ const LOW_THRESHOLD = 10
 
 // Segmented "dotted" progress: a row of thin vertical lines, filled up to pct.
 function SegmentedBar({ pct, low }) {
-  const N = 28
+  const N = 44
   const filled = Math.max(0, Math.min(N, Math.round((pct / 100) * N)))
   return (
-    <div className="flex w-full items-center justify-between">
+    <div className="flex w-full items-center gap-[1.5px]">
       {Array.from({ length: N }).map((_, i) => (
         <span
           key={i}
           className={
-            'h-3 w-[2px] rounded-full transition-colors ' +
+            'h-3 flex-1 rounded-full transition-colors ' +
             (i < filled ? (low ? 'bg-warn-500' : 'bg-brand-500') : 'bg-line')
           }
         />

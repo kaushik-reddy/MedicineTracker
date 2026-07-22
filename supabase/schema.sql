@@ -80,6 +80,19 @@ create table if not exists public.dose_logs (
 );
 
 -- ---------------------------------------------------------------------------
+-- Symptom logs (how the user is feeling)
+-- ---------------------------------------------------------------------------
+create table if not exists public.symptoms (
+  id          uuid primary key default gen_random_uuid(),
+  owner_id    uuid not null default auth.uid() references auth.users (id) on delete cascade,
+  member_id   uuid references public.members (id) on delete set null,
+  name        text,                              -- symptom description
+  severity    text,                              -- Mild | Moderate | Severe
+  mood        text,                              -- emoji describing overall mood
+  logged_at   timestamptz not null default now()
+);
+
+-- ---------------------------------------------------------------------------
 -- Backfill columns on pre-existing tables
 -- `create table if not exists` above will NOT add missing columns to a table
 -- that already exists, so ensure every column exists here. Safe to re-run.
@@ -134,6 +147,14 @@ alter table public.dose_logs add column if not exists marked_time    text;
 alter table public.dose_logs add column if not exists status         text not null default 'Taken';
 alter table public.dose_logs add column if not exists logged_at      timestamptz not null default now();
 
+-- symptoms
+alter table public.symptoms add column if not exists owner_id   uuid not null default auth.uid() references auth.users (id) on delete cascade;
+alter table public.symptoms add column if not exists member_id  uuid references public.members (id) on delete set null;
+alter table public.symptoms add column if not exists name       text;
+alter table public.symptoms add column if not exists severity   text;
+alter table public.symptoms add column if not exists mood       text;
+alter table public.symptoms add column if not exists logged_at  timestamptz not null default now();
+
 -- ---------------------------------------------------------------------------
 -- Indexes
 -- ---------------------------------------------------------------------------
@@ -146,6 +167,8 @@ create index if not exists idx_inventory_med        on public.inventory (medicat
 create index if not exists idx_dose_logs_owner      on public.dose_logs (owner_id);
 create index if not exists idx_dose_logs_member     on public.dose_logs (member_id);
 create index if not exists idx_dose_logs_logged_at  on public.dose_logs (logged_at desc);
+create index if not exists idx_symptoms_owner       on public.symptoms (owner_id);
+create index if not exists idx_symptoms_logged_at   on public.symptoms (logged_at desc);
 
 -- ---------------------------------------------------------------------------
 -- Row Level Security — a user can only see and change their own rows
@@ -154,6 +177,7 @@ alter table public.members     enable row level security;
 alter table public.medications enable row level security;
 alter table public.inventory   enable row level security;
 alter table public.dose_logs   enable row level security;
+alter table public.symptoms    enable row level security;
 
 -- members
 drop policy if exists "members: owner can read"   on public.members;
@@ -178,3 +202,9 @@ drop policy if exists "dose_logs: owner can read"  on public.dose_logs;
 drop policy if exists "dose_logs: owner can write" on public.dose_logs;
 create policy "dose_logs: owner can read"  on public.dose_logs for select using (auth.uid() = owner_id);
 create policy "dose_logs: owner can write" on public.dose_logs for all using (auth.uid() = owner_id) with check (auth.uid() = owner_id);
+
+-- symptoms
+drop policy if exists "symptoms: owner can read"  on public.symptoms;
+drop policy if exists "symptoms: owner can write" on public.symptoms;
+create policy "symptoms: owner can read"  on public.symptoms for select using (auth.uid() = owner_id);
+create policy "symptoms: owner can write" on public.symptoms for all using (auth.uid() = owner_id) with check (auth.uid() = owner_id);
