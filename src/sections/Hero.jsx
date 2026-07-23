@@ -11,36 +11,36 @@ export function HeroCard({ className = '' }) {
   const hasData = glance.total > 0
   return (
     <Card className={'relative flex overflow-hidden ' + className}>
-      <div className="flex flex-1 items-center gap-2 py-3 pl-5 pr-3">
+      <div className="flex flex-1 items-center gap-1 py-3 pl-4 pr-2 sm:gap-2 sm:pl-5 sm:pr-3">
         <div className="flex-1">
-          <h1 className="text-xl font-extrabold leading-tight text-ink-900 sm:text-2xl">
+          <h1 className="text-[19px] font-extrabold leading-tight text-ink-900 sm:text-2xl">
             Good morning,
             <br />
             {firstName}!
           </h1>
-          <p className="mt-1.5 text-[13px] text-ink-500">Stay consistent, stay healthy.</p>
+          <p className="mt-1 text-[12px] text-ink-500 sm:mt-1.5 sm:text-[13px]">Stay consistent, stay healthy.</p>
 
-          <div className="mt-4 inline-flex items-center gap-2.5 rounded-2xl bg-brand-50/80 px-3 py-2">
-            <span className="grid h-8 w-8 place-items-center rounded-xl bg-white">
+          <div className="mt-3 flex w-full items-center gap-2.5 rounded-2xl bg-brand-50/80 px-3 py-2 sm:mt-4 sm:inline-flex sm:w-auto">
+            <span className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-white">
               <Heart className="h-4 w-4 text-brand-500" />
             </span>
-            <div className="leading-tight">
-              <div className="text-[11px] font-medium text-ink-500">{hasData ? "You're doing great!" : 'Welcome to MediTrack'}</div>
-              <div className="text-[12px] font-bold text-brand-600">
+            <div className="min-w-0 flex-1 leading-tight">
+              <div className="truncate text-[11px] font-medium text-ink-500">{hasData ? "You're doing great!" : 'Welcome to MediTrack'}</div>
+              <div className="truncate text-[12px] font-bold text-brand-600">
                 {hasData ? `${glance.adherence}% adherence today` : 'Add a member to get started'}
               </div>
             </div>
-            <TrendingUp className="ml-1 h-4 w-4 text-brand-400" />
+            <TrendingUp className="ml-1 h-4 w-4 shrink-0 text-brand-400" />
           </div>
 
           {latestSymptom && (
-            <div className="mt-2 inline-flex items-center gap-2.5 rounded-2xl bg-violet-50/80 px-3 py-2">
-              <span className="grid h-8 w-8 place-items-center rounded-xl bg-white text-accent-500">
+            <div className="mt-2 flex w-full items-center gap-2.5 rounded-2xl bg-violet-50/80 px-3 py-2 sm:inline-flex sm:w-auto">
+              <span className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-white text-accent-500">
                 <MoodFace mood={latestSymptom.mood} className="h-6 w-6" />
               </span>
-              <div className="leading-tight">
-                <div className="text-[11px] font-medium text-ink-500">Recent mood &amp; symptom</div>
-                <div className="max-w-[190px] truncate text-[12px] font-bold text-accent-600">
+              <div className="min-w-0 flex-1 leading-tight">
+                <div className="truncate text-[11px] font-medium text-ink-500">Recent mood &amp; symptom</div>
+                <div className="truncate text-[12px] font-bold text-accent-600 sm:max-w-[190px]">
                   {latestSymptom.name}
                   {latestSymptom.severity ? ` · ${latestSymptom.severity}` : ''}
                 </div>
@@ -52,7 +52,7 @@ export function HeroCard({ className = '' }) {
         <Illustration
           src="/assets/hero.png"
           label="3D Pill"
-          className="max-h-full w-[110px] shrink-0 self-center object-contain sm:w-auto sm:max-w-[240px]"
+          className="max-h-full w-[88px]! shrink-0 self-center object-contain sm:w-auto! sm:max-w-[240px]"
         />
       </div>
       <div className="pointer-events-none absolute -right-8 -top-8 h-32 w-32 rounded-full bg-brand-100/50 blur-2xl" />
