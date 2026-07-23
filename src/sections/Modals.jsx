@@ -84,8 +84,8 @@ function Shell({ icon: Icon, tone = 'brand', title, subtitle, children }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-ink-900/40 backdrop-blur-sm" onClick={closeModal} />
-      <div className="relative w-full max-w-md overflow-hidden rounded-3xl bg-white shadow-2xl ring-1 ring-black/5">
-        <div className={'flex items-start justify-between gap-3 bg-gradient-to-br p-6 pb-5 ' + (headMap[tone] || headMap.brand)}>
+      <div className="relative flex max-h-[92vh] w-full max-w-md flex-col overflow-hidden rounded-3xl bg-white shadow-2xl ring-1 ring-black/5">
+        <div className={'flex shrink-0 items-start justify-between gap-3 bg-gradient-to-br p-6 pb-5 ' + (headMap[tone] || headMap.brand)}>
           <div className="flex items-center gap-3">
             <span className={'grid h-11 w-11 shrink-0 place-items-center rounded-2xl shadow-sm ring-1 ring-black/5 ' + softMap[tone]}>
               <Icon className="h-6 w-6" />
@@ -102,7 +102,7 @@ function Shell({ icon: Icon, tone = 'brand', title, subtitle, children }) {
             <Close className="h-4 w-4" />
           </button>
         </div>
-        <div className="px-6 pb-6 pt-4">{children}</div>
+        <div className="no-scrollbar flex-1 overflow-y-auto px-6 pb-6 pt-4">{children}</div>
       </div>
     </div>
   )
@@ -758,15 +758,15 @@ function FullSchedule() {
         </div>
 
         {/* Date navigator */}
-        <div className="flex items-center justify-between px-5 pt-4">
-          <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center justify-between gap-2 px-5 pt-4">
+          <div className="flex flex-1 items-center justify-center gap-2 sm:flex-none sm:justify-start">
             <button
               onClick={() => go(-1)}
-              className="grid h-9 w-9 place-items-center rounded-xl border border-line text-ink-500 hover:bg-page transition-colors"
+              className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-line text-ink-500 hover:bg-page transition-colors"
             >
               <ChevronLeft className="h-4 w-4" />
             </button>
-            <div className="min-w-[190px] text-center">
+            <div className="min-w-[130px] flex-1 text-center sm:min-w-[190px] sm:flex-none">
               <div className="text-[14px] font-extrabold text-ink-900">{formatLongDate(selected)}</div>
               <span className={'mt-0.5 inline-block rounded-full px-2 py-0.5 text-[10px] font-bold ' + dayBadge}>
                 {isToday ? 'Today' : isPast ? 'Past' : 'Upcoming'}
@@ -774,7 +774,7 @@ function FullSchedule() {
             </div>
             <button
               onClick={() => go(1)}
-              className="grid h-9 w-9 place-items-center rounded-xl border border-line text-ink-500 hover:bg-page transition-colors"
+              className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-line text-ink-500 hover:bg-page transition-colors"
             >
               <ChevronRight className="h-4 w-4" />
             </button>
@@ -1231,29 +1231,29 @@ function MedDetails() {
         </div>
 
         {/* Footer — all actions in one row */}
-        <div className="flex gap-2.5 border-t border-line p-4">
+        <div className="flex flex-wrap gap-2.5 border-t border-line p-4">
           <button
             onClick={() => openEditMed(med.id)}
-            className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-line py-2.5 text-[12px] font-bold text-ink-600 hover:bg-page transition-colors"
+            className="flex min-w-[110px] flex-1 items-center justify-center gap-1.5 rounded-xl border border-line py-2.5 text-[12px] font-bold text-ink-600 hover:bg-page transition-colors"
           >
             <Note className="h-4 w-4" /> Edit
           </button>
           <button
             onClick={() => duplicateMedication(med.id)}
-            className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-line py-2.5 text-[12px] font-bold text-ink-600 hover:bg-page transition-colors"
+            className="flex min-w-[110px] flex-1 items-center justify-center gap-1.5 rounded-xl border border-line py-2.5 text-[12px] font-bold text-ink-600 hover:bg-page transition-colors"
           >
             <Plus className="h-4 w-4" /> Duplicate
           </button>
           <button
             onClick={() => openScheduleMed(med.id)}
-            className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-brand-500 py-2.5 text-[12px] font-bold text-white hover:bg-brand-600 transition-colors"
+            className="flex min-w-[130px] flex-1 items-center justify-center gap-1.5 rounded-xl bg-brand-500 py-2.5 text-[12px] font-bold text-white hover:bg-brand-600 transition-colors"
           >
             <CalendarDays className="h-4 w-4" /> Add to calendar
           </button>
           {med.scheduledToday && (
             <button
               onClick={() => requestConfirm({ kind: 'unschedule', medId: med.id })}
-              className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-amber-200 bg-amber-50 py-2.5 text-[12px] font-bold text-warn-500 hover:bg-amber-100 transition-colors"
+              className="flex min-w-[110px] flex-1 items-center justify-center gap-1.5 rounded-xl border border-amber-200 bg-amber-50 py-2.5 text-[12px] font-bold text-warn-500 hover:bg-amber-100 transition-colors"
             >
               <Trash className="h-4 w-4" /> Remove
             </button>

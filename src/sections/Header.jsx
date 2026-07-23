@@ -96,7 +96,7 @@ export default function Header() {
             <>
               {/* Blurred backdrop */}
               <div className="fixed inset-0 z-40 bg-ink-900/25 backdrop-blur-sm" onClick={() => setOpen(false)} />
-              <div className="absolute right-0 z-50 mt-2 w-80 overflow-hidden rounded-2xl border border-line bg-white shadow-2xl ring-1 ring-black/5">
+              <div className="absolute right-0 z-50 mt-2 w-80 max-w-[calc(100vw-1.5rem)] overflow-hidden rounded-2xl border border-line bg-white shadow-2xl ring-1 ring-black/5">
                 <div className="flex items-center justify-between gap-2 bg-gradient-to-br from-brand-50 via-white to-white px-4 py-3.5">
                   <div className="flex items-center gap-2.5">
                     <span className="grid h-9 w-9 place-items-center rounded-xl bg-brand-50 text-brand-600 ring-1 ring-black/5">

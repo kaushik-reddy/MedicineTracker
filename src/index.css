@@ -70,6 +70,18 @@ body {
   display: none;
 }
 
+/* Mobile: hide every scrollbar (scrolling still works). Web (≥769px) is untouched. */
+@media (max-width: 768px) {
+  * {
+    scrollbar-width: none !important;
+  }
+  *::-webkit-scrollbar {
+    width: 0 !important;
+    height: 0 !important;
+    display: none !important;
+  }
+}
+
 /* Date-change slide/fade used in the full-schedule modal */
 @keyframes slidein {
   from {

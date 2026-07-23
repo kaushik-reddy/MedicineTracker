@@ -16,8 +16,8 @@ const DESIGN_H = 1000
 function MobileApp() {
   const cell = (h) => `${h} shrink-0`
   return (
-    <div className="min-h-screen w-full overflow-y-auto bg-page">
-      <div className="mx-auto flex w-full max-w-md flex-col gap-3 px-4 pb-8 pt-4">
+    <div className="no-scrollbar min-h-screen w-full overflow-y-auto overflow-x-hidden bg-page">
+      <div className="mx-auto flex w-full max-w-md flex-col gap-3 px-3.5 pb-8 pt-4">
         <Header />
         <div className={cell('h-[188px]')}><HeroCard className="h-full" /></div>
         <div className={cell('h-[236px]')}><NextDoseCard className="h-full" /></div>
