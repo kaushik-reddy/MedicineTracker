@@ -284,6 +284,14 @@ export function Users({ className = '' }) {
 // Mood keys used across the app, in order from best to worst.
 export const MOODS = ['great', 'good', 'okay', 'low', 'bad']
 export const MOOD_LABEL = { great: 'Great', good: 'Good', okay: 'Okay', low: 'Low', bad: 'Bad' }
+// Green → red scan colors for quick reading in history/badges.
+export const MOOD_COLOR = {
+  great: 'text-brand-600',
+  good: 'text-brand-400',
+  okay: 'text-warn-500',
+  low: 'text-coral-400',
+  bad: 'text-coral-500',
+}
 // Back-compat: map legacy stored emojis to mood keys.
 const EMOJI_TO_MOOD = { '😀': 'great', '🙂': 'good', '😐': 'okay', '🙁': 'low', '😣': 'bad' }
 export const moodKey = (m) => (MOODS.includes(m) ? m : EMOJI_TO_MOOD[m] || 'okay')

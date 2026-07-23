@@ -27,6 +27,7 @@ import {
   MoodFace,
   MOODS,
   MOOD_LABEL,
+  MOOD_COLOR,
 } from '../icons.jsx'
 import { PillGlyph, MedGlyph, UserAvatar } from '../ui.jsx'
 import { ScheduleTimeline, Calendar } from './ScheduleView.jsx'
@@ -725,6 +726,13 @@ function FullSchedule() {
         return { ...m, taken: log?.status === 'Taken', skipped: log?.status === 'Skipped' }
       })
   const activeId = isToday ? nextDose?.id : null
+  const takenCount = items.filter((i) => i.taken).length
+  const skippedCount = items.filter((i) => i.skipped).length
+  const dayBadge = isToday
+    ? 'bg-brand-50 text-brand-600'
+    : isPast
+      ? 'bg-page text-ink-500'
+      : 'bg-violet-50 text-accent-600'
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -760,9 +768,9 @@ function FullSchedule() {
             </button>
             <div className="min-w-[190px] text-center">
               <div className="text-[14px] font-extrabold text-ink-900">{formatLongDate(selected)}</div>
-              <div className="text-[11px] font-semibold text-brand-600">
+              <span className={'mt-0.5 inline-block rounded-full px-2 py-0.5 text-[10px] font-bold ' + dayBadge}>
                 {isToday ? 'Today' : isPast ? 'Past' : 'Upcoming'}
-              </div>
+              </span>
             </div>
             <button
               onClick={() => go(1)}
@@ -801,23 +809,49 @@ function FullSchedule() {
           </div>
         </div>
 
+        {/* Day summary */}
+        <div className="mx-5 mt-3 grid grid-cols-3 gap-2">
+          <div className="rounded-xl border border-line bg-brand-50/40 p-2 text-center">
+            <div className="text-[15px] font-extrabold text-brand-600">{takenCount}</div>
+            <div className="text-[9px] font-bold uppercase tracking-wide text-ink-400">Taken</div>
+          </div>
+          <div className="rounded-xl border border-line bg-amber-50/40 p-2 text-center">
+            <div className="text-[15px] font-extrabold text-warn-500">{skippedCount}</div>
+            <div className="text-[9px] font-bold uppercase tracking-wide text-ink-400">Skipped</div>
+          </div>
+          <div className="rounded-xl border border-line bg-page/50 p-2 text-center">
+            <div className="text-[15px] font-extrabold text-ink-900">{items.length}</div>
+            <div className="text-[9px] font-bold uppercase tracking-wide text-ink-400">Scheduled</div>
+          </div>
+        </div>
+
         {/* Timeline for the selected date (animated on change) */}
         <div className="p-5 pt-4">
-          <div
-            key={selected.toDateString()}
-            className="animate-slide"
-            style={{ '--slide': `${dir >= 0 ? 18 : -18}px` }}
-          >
-            <ScheduleTimeline
-              items={items}
-              activeId={activeId}
-              size="lg"
-              onItemClick={
-                isToday ? (it) => (it.taken || it.skipped ? resetDose(it.id) : markTaken(it.id)) : undefined
-              }
-            />
-          </div>
-          {!isToday && (
+          {items.length === 0 ? (
+            <div className="flex flex-col items-center justify-center gap-2 py-8 text-center">
+              <span className="grid h-11 w-11 place-items-center rounded-2xl bg-page text-ink-400">
+                <CalendarDays className="h-6 w-6" />
+              </span>
+              <div className="text-[13px] font-bold text-ink-500">No doses on this day</div>
+              <div className="text-[11px] text-ink-400">Nothing was scheduled for {formatLongDate(selected)}.</div>
+            </div>
+          ) : (
+            <div
+              key={selected.toDateString()}
+              className="animate-slide"
+              style={{ '--slide': `${dir >= 0 ? 18 : -18}px` }}
+            >
+              <ScheduleTimeline
+                items={items}
+                activeId={activeId}
+                size="lg"
+                onItemClick={
+                  isToday ? (it) => (it.taken || it.skipped ? resetDose(it.id) : markTaken(it.id)) : undefined
+                }
+              />
+            </div>
+          )}
+          {!isToday && items.length > 0 && (
             <p className="mt-3 text-center text-[11px] font-medium text-ink-400">
               Only today's doses can be updated · use the arrows or calendar to browse
             </p>
@@ -1261,7 +1295,7 @@ function Restock() {
 function LogSymptom() {
   const { logSymptom, closeModal, users } = useApp()
   const [text, setText] = useState('')
-  const [severity, setSeverity] = useState('Mild')
+  const [severity, setSeverity] = useState('')
   const [mood, setMood] = useState('good')
   const [member, setMember] = useState(users[0]?.id ?? '')
   const sevCls = {
@@ -1307,11 +1341,11 @@ function LogSymptom() {
                 onClick={() => setMood(key)}
                 className={
                   'flex flex-1 flex-col items-center gap-1 rounded-xl border py-2 transition-colors ' +
-                  (mood === key ? 'border-accent-400 bg-violet-50 text-accent-600' : 'border-line text-ink-400 hover:bg-page')
+                  (mood === key ? 'border-accent-400 bg-violet-50' : 'border-line hover:bg-page')
                 }
               >
-                <MoodFace mood={key} className="h-6 w-6" />
-                <span className={'text-[9px] font-bold ' + (mood === key ? 'text-accent-600' : 'text-ink-400')}>{MOOD_LABEL[key]}</span>
+                <MoodFace mood={key} className={'h-6 w-6 ' + (mood === key ? MOOD_COLOR[key] : 'text-ink-300')} />
+                <span className={'text-[9px] font-bold ' + (mood === key ? 'text-ink-700' : 'text-ink-400')}>{MOOD_LABEL[key]}</span>
               </button>
             ))}
           </div>
@@ -1330,12 +1364,15 @@ function LogSymptom() {
             value={text}
             onChange={(e) => setText(e.target.value)}
           />
-          <div className={label + ' mt-2.5'}>Severity</div>
+          <div className="mt-2.5 flex items-center justify-between">
+            <div className={label}>Severity</div>
+            <span className="text-[10px] font-medium text-ink-400">optional</span>
+          </div>
           <div className="mt-1.5 flex gap-2">
             {['Mild', 'Moderate', 'Severe'].map((s) => (
               <button
                 key={s}
-                onClick={() => setSeverity(s)}
+                onClick={() => setSeverity((cur) => (cur === s ? '' : s))}
                 className={
                   'flex-1 rounded-xl border py-2 text-[12px] font-bold transition-colors ' +
                   (severity === s ? sevCls[s] : 'border-line text-ink-500 hover:bg-page')
@@ -1351,7 +1388,7 @@ function LogSymptom() {
         tone="accent"
         confirmLabel="Log entry"
         onConfirm={() => {
-          logSymptom({ name: text.trim() || 'Mood check', severity, mood, user: member || null })
+          logSymptom({ name: text.trim() || 'Mood check', severity: severity || null, mood, user: member || null })
           closeModal()
         }}
       />

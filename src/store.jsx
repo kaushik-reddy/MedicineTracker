@@ -670,7 +670,7 @@ export function AppProvider({ children }) {
   const logSymptom = useCallback(
     ({ name, severity, mood, user }) => {
       const clean = (name || '').trim() || 'Symptom'
-      const entry = { id: newId(), ts: Date.now(), name: clean, severity: severity || 'Mild', mood: mood || '', user: user || null }
+      const entry = { id: newId(), ts: Date.now(), name: clean, severity: severity || null, mood: mood || '', user: user || null }
       setSymptoms((list) => [entry, ...list].slice(0, 200))
       db.insertSymptom(entry)
       const tone = severity === 'Severe' ? 'coral' : severity === 'Moderate' ? 'warn' : 'brand'
