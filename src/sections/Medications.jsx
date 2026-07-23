@@ -125,7 +125,18 @@ export function MedsCard({ className = '' }) {
 
 export function AdherenceCard({ className = '' }) {
   const [range, setRange] = useState('This Week')
-  const { users, medications, history, glance } = useApp()
+  const { users, medications, history } = useApp()
+
+  // Adherence over the selected range, derived from the dose-log history.
+  const rangeDays = range === 'This Year' ? 365 : range === 'This Month' ? 30 : 7
+  const rangeLabel = range === 'This Year' ? 'this year' : range === 'This Month' ? 'this month' : 'this week'
+  const rangeStats = useMemo(() => {
+    const cutoff = Date.now() - rangeDays * 86400000
+    const entries = history.filter((e) => e.ts >= cutoff)
+    const total = entries.length
+    const taken = entries.filter((e) => e.status === 'Taken').length
+    return { total, taken, pct: total ? Math.round((taken / total) * 100) : 0 }
+  }, [history, rangeDays])
 
   const perUser = users
     .map((u) => {
@@ -175,9 +186,9 @@ export function AdherenceCard({ className = '' }) {
 
       <div className="mt-1 flex items-center gap-3">
         <div className="flex flex-col items-center">
-          <AdherenceRing value={glance.adherence} />
+          <AdherenceRing value={rangeStats.pct} />
           <p className="mt-1 text-center text-[10px] font-medium text-ink-500">
-            {glance.total ? `${glance.takenCount} of ${glance.total} today` : 'No doses today'}
+            {rangeStats.total ? `${rangeStats.taken} of ${rangeStats.total} ${rangeLabel}` : `No doses ${rangeLabel}`}
           </p>
         </div>
 

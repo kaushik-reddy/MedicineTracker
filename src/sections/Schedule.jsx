@@ -1,8 +1,8 @@
-import { useState, useRef, useLayoutEffect } from 'react'
+import { useState, useRef, useLayoutEffect, useMemo } from 'react'
 import { ChevronRight, Clock, CheckCircle, TrendingUp, Check, Close } from '../icons.jsx'
 import { Card, SectionTitle, Dropdown, toneSoft, MedGlyph, userTone, UserAvatar } from '../ui.jsx'
 import { useApp } from '../store.jsx'
-import { medActiveOn, istCalendarDate, addDays } from '../time.js'
+import { medActiveOn, istCalendarDate, addDays, sameDay } from '../time.js'
 
 const glanceIcon = { clock: Clock, check: CheckCircle, trend: TrendingUp }
 
@@ -204,8 +204,23 @@ export function ScheduleCard({ className = '' }) {
 
 export function GlanceCard({ className = '' }) {
   const [range, setRange] = useState('Today')
-  const { glance, medications, users } = useApp()
-  const donePct = glance.total ? Math.round((glance.takenCount / glance.total) * 100) : 0
+  const { glance, medications, users, history } = useApp()
+
+  // Dose totals for the selected range (Today is live; others come from history).
+  const stats = useMemo(() => {
+    if (range === 'Today') return { taken: glance.takenCount, total: glance.total }
+    if (range === 'Yesterday') {
+      const y = addDays(istCalendarDate(), -1)
+      const entries = history.filter((e) => e.ts && sameDay(istCalendarDate(e.ts), y))
+      return { taken: entries.filter((e) => e.status === 'Taken').length, total: entries.length }
+    }
+    const cutoff = Date.now() - 7 * 86400000
+    const entries = history.filter((e) => e.ts >= cutoff)
+    return { taken: entries.filter((e) => e.status === 'Taken').length, total: entries.length }
+  }, [range, glance, history])
+
+  const donePct = stats.total ? Math.round((stats.taken / stats.total) * 100) : 0
+  const rangeLabel = range === 'Today' ? 'today' : range === 'Yesterday' ? 'yesterday' : 'this week'
 
   const perUser = users
     .map((u) => {
@@ -227,12 +242,12 @@ export function GlanceCard({ className = '' }) {
         <div className="rounded-2xl bg-gradient-to-br from-brand-50 to-emerald-50/50 p-4">
           <div className="flex items-end justify-between">
             <div className="leading-none">
-              <span className="text-[30px] font-extrabold text-ink-900">{glance.takenCount}</span>
-              <span className="text-[16px] font-bold text-ink-400"> / {glance.total}</span>
-              <div className="mt-1 text-[11px] font-semibold text-ink-500">doses taken today</div>
+              <span className="text-[30px] font-extrabold text-ink-900">{stats.taken}</span>
+              <span className="text-[16px] font-bold text-ink-400"> / {stats.total}</span>
+              <div className="mt-1 text-[11px] font-semibold text-ink-500">doses taken {rangeLabel}</div>
             </div>
             <div className="text-right leading-none">
-              <div className="text-[22px] font-extrabold text-brand-600">{glance.adherence}%</div>
+              <div className="text-[22px] font-extrabold text-brand-600">{donePct}%</div>
               <div className="mt-1 text-[10px] font-semibold text-ink-400">adherence</div>
             </div>
           </div>

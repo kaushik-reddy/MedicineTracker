@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useApp } from '../store.jsx'
 import {
   Close,
@@ -13,6 +13,7 @@ import {
   CalendarDays,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
   SkipForward,
   RefreshCw,
   Trash,
@@ -125,6 +126,89 @@ function nowTime() {
   return new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
 }
 
+// Themed replacement for a native <select>. `options` is an array of strings or
+// { value, label }. Renders a field-styled trigger + a rounded popup list.
+function SelectField({ value, options, onChange, placeholder = 'Select', wrapClass = 'relative mt-1', triggerClass }) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef(null)
+  useEffect(() => {
+    const onDoc = (e) => ref.current && !ref.current.contains(e.target) && setOpen(false)
+    document.addEventListener('mousedown', onDoc)
+    return () => document.removeEventListener('mousedown', onDoc)
+  }, [])
+  const norm = options.map((o) => (typeof o === 'string' ? { value: o, label: o } : o))
+  const current = norm.find((o) => o.value === value)
+  return (
+    <div ref={ref} className={wrapClass}>
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className={(triggerClass || field) + ' flex items-center justify-between gap-2 text-left'}
+      >
+        <span className={'truncate ' + (current ? '' : 'text-ink-400')}>{current ? current.label : placeholder}</span>
+        <ChevronDown className={'h-4 w-4 shrink-0 text-ink-400 transition-transform ' + (open ? 'rotate-180' : '')} />
+      </button>
+      {open && (
+        <div className="absolute z-30 mt-1.5 max-h-56 w-full min-w-[9rem] overflow-y-auto no-scrollbar rounded-xl border border-line bg-white p-1 shadow-lg">
+          {norm.map((o) => (
+            <button
+              key={o.value}
+              type="button"
+              onClick={() => {
+                onChange(o.value)
+                setOpen(false)
+              }}
+              className={
+                'block w-full truncate rounded-lg px-3 py-2 text-left text-[13px] font-medium transition-colors ' +
+                (o.value === value ? 'bg-brand-50 text-brand-600' : 'text-ink-700 hover:bg-page')
+              }
+            >
+              {o.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// Themed date picker built on the app's Calendar. Works on yyyy-mm-dd strings and
+// expands inline (so it never gets clipped inside scrollable modal bodies).
+function DateField({ value, onChange }) {
+  const [open, setOpen] = useState(false)
+  const parse = (s) => {
+    const [y, m, d] = String(s).split('-').map(Number)
+    return y && m && d ? new Date(y, m - 1, d) : istCalendarDate()
+  }
+  const selected = parse(value)
+  const toISO = (d) =>
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  return (
+    <div className="mt-1">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className={field + ' flex items-center justify-between gap-2 text-left'}
+      >
+        <span>{selected.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
+        <CalendarIcon className="h-4 w-4 shrink-0 text-ink-400" />
+      </button>
+      {open && (
+        <div className="mt-2">
+          <Calendar
+            value={selected}
+            today={istCalendarDate()}
+            onChange={(d) => {
+              onChange(toISO(d))
+              setOpen(false)
+            }}
+          />
+        </div>
+      )}
+    </div>
+  )
+}
+
 function LogDose() {
   const { medications, logDose, closeModal } = useApp()
   const [name, setName] = useState(medications[0]?.name || '')
@@ -134,11 +218,12 @@ function LogDose() {
       <div className="space-y-3">
         <div>
           <div className={label}>Medication</div>
-          <select className={field + ' mt-1'} value={name} onChange={(e) => setName(e.target.value)}>
-            {medications.map((m) => (
-              <option key={m.name}>{m.name}</option>
-            ))}
-          </select>
+          <SelectField
+            value={name}
+            options={medications.map((m) => m.name)}
+            onChange={setName}
+            placeholder="Select medication"
+          />
         </div>
         <div>
           <div className={label}>Time taken</div>
@@ -311,7 +396,7 @@ function MedicationForm({ mode = 'add', med = null }) {
         <div className="grid grid-cols-2 gap-3">
           <div>
             <div className={label}>Start tracking</div>
-            <input type="date" className={field + ' mt-1'} value={form.startDate} onChange={set('startDate')} />
+            <DateField value={form.startDate} onChange={(v) => setForm((f) => ({ ...f, startDate: v }))} />
           </div>
           <div>
             <div className={label}>Time</div>
@@ -468,11 +553,12 @@ function SetReminder() {
       <div className="space-y-3">
         <div>
           <div className={label}>Medication</div>
-          <select className={field + ' mt-1'} value={name} onChange={(e) => setName(e.target.value)}>
-            {medications.map((m) => (
-              <option key={m.name}>{m.name}</option>
-            ))}
-          </select>
+          <SelectField
+            value={name}
+            options={medications.map((m) => m.name)}
+            onChange={setName}
+            placeholder="Select medication"
+          />
         </div>
         <div>
           <div className={label}>Remind at</div>
@@ -562,7 +648,7 @@ function ExportReport() {
 }
 
 function FullSchedule() {
-  const { schedule, medications, nextDose, markTaken, resetDose, closeModal } = useApp()
+  const { schedule, medications, history, nextDose, markTaken, resetDose, closeModal } = useApp()
   const now = useNow(1000)
   const today = istCalendarDate(now)
   const [selected, setSelected] = useState(today)
@@ -587,26 +673,38 @@ function FullSchedule() {
   const isToday = sameDay(selected, today)
   const isPast = selected < today && !isToday
 
-  // Build the items for the selected day. Today is live; other days are derived.
+  // Build the items for the selected day. Today is live; other days are
+  // reconstructed from the dose-log history so past days show what actually
+  // happened (taken / skipped / missed) instead of a guess.
   const baseMeds = medications.filter((m) => m.scheduledToday && medActiveOn(m, selected))
   const items = isToday
     ? schedule
-    : baseMeds.map((m) => ({ ...m, taken: isPast, skipped: false }))
+    : baseMeds.map((m) => {
+        const log = history.find(
+          (h) => h.name === m.name && h.user === m.user && h.ts && sameDay(istCalendarDate(h.ts), selected),
+        )
+        return { ...m, taken: log?.status === 'Taken', skipped: log?.status === 'Skipped' }
+      })
   const activeId = isToday ? nextDose?.id : null
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-ink-900/40 backdrop-blur-sm" onClick={closeModal} />
-      <div className="relative w-full max-w-2xl overflow-visible rounded-3xl bg-white shadow-2xl">
+      <div className="relative w-full max-w-2xl overflow-visible rounded-3xl bg-white shadow-2xl ring-1 ring-black/5">
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-line p-5">
-          <div>
-            <h2 className="text-[17px] font-extrabold text-ink-900">Full Schedule</h2>
-            <p className="text-[12px] text-ink-500">Browse doses by day · times in IST</p>
+        <div className="flex items-center justify-between gap-3 rounded-t-3xl border-b border-line bg-gradient-to-br from-brand-50 via-white to-white p-5">
+          <div className="flex items-center gap-3">
+            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-brand-50 text-brand-600 shadow-sm ring-1 ring-black/5">
+              <CalendarDays className="h-6 w-6" />
+            </span>
+            <div>
+              <h2 className="text-[17px] font-extrabold text-ink-900">Full Schedule</h2>
+              <p className="text-[12px] text-ink-500">Browse doses by day · times in IST</p>
+            </div>
           </div>
           <button
             onClick={closeModal}
-            className="grid h-8 w-8 place-items-center rounded-full text-ink-400 hover:bg-page transition-colors"
+            className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-white/70 text-ink-400 hover:bg-white transition-colors"
           >
             <Close className="h-4 w-4" />
           </button>
@@ -844,7 +942,7 @@ function AddToSchedule() {
       <div className="mt-4 space-y-3">
         <div>
           <div className={label}>Date</div>
-          <input type="date" className={field + ' mt-1'} value={date} onChange={(e) => setDate(e.target.value)} />
+          <DateField value={date} onChange={setDate} />
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div>
@@ -853,11 +951,7 @@ function AddToSchedule() {
           </div>
           <div>
             <div className={label}>Frequency</div>
-            <select className={field + ' mt-1'} value={frequency} onChange={(e) => setFrequency(e.target.value)}>
-              <option>Daily</option>
-              <option>Twice daily</option>
-              <option>Weekly</option>
-            </select>
+            <SelectField value={frequency} options={['Daily', 'Twice daily', 'Weekly']} onChange={setFrequency} />
           </div>
         </div>
       </div>
@@ -1115,14 +1209,20 @@ function LogSymptom() {
   const [severity, setSeverity] = useState('Mild')
   const [mood, setMood] = useState('🙂')
   const [member, setMember] = useState(users[0]?.id ?? '')
-  const moods = ['😀', '🙂', '😐', '🙁', '😣']
+  const moods = [
+    ['😀', 'Great'],
+    ['🙂', 'Good'],
+    ['😐', 'Okay'],
+    ['🙁', 'Low'],
+    ['😣', 'Bad'],
+  ]
   const sevCls = {
     Mild: 'border-brand-400 bg-brand-50 text-brand-600',
     Moderate: 'border-amber-400 bg-amber-50 text-warn-500',
     Severe: 'border-rose-300 bg-rose-50 text-coral-500',
   }
   return (
-    <Shell icon={Note} tone="accent" title="Log a Symptom" subtitle="Record how you're feeling">
+    <Shell icon={Note} tone="accent" title="Log Mood / Symptom" subtitle="How are you feeling today?">
       <div className="space-y-3">
         {users.length > 0 && (
           <div>
@@ -1144,34 +1244,45 @@ function LogSymptom() {
             </div>
           </div>
         )}
-        <div>
-          <div className={label}>Symptom</div>
-          <input
-            className={field + ' mt-1'}
-            placeholder="e.g. Headache, nausea, dizziness…"
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-          />
-        </div>
-        <div>
-          <div className={label}>Mood</div>
-          <div className="mt-1.5 flex gap-2">
-            {moods.map((m) => (
+
+        {/* Mood — how you feel overall */}
+        <div className="rounded-2xl border border-line p-3">
+          <div className="flex items-center gap-1.5">
+            <span className="text-[12px]">🧠</span>
+            <span className="text-[12px] font-bold text-ink-700">Mood</span>
+            <span className="text-[11px] font-medium text-ink-400">· how you feel overall</span>
+          </div>
+          <div className="mt-2 flex gap-2">
+            {moods.map(([emoji, moodLabel]) => (
               <button
-                key={m}
-                onClick={() => setMood(m)}
+                key={emoji}
+                onClick={() => setMood(emoji)}
                 className={
-                  'flex-1 rounded-xl border py-1.5 text-[20px] transition-colors ' +
-                  (mood === m ? 'border-accent-400 bg-violet-50' : 'border-line hover:bg-page')
+                  'flex flex-1 flex-col items-center gap-0.5 rounded-xl border py-1.5 transition-colors ' +
+                  (mood === emoji ? 'border-accent-400 bg-violet-50' : 'border-line hover:bg-page')
                 }
               >
-                {m}
+                <span className="text-[20px] leading-none">{emoji}</span>
+                <span className={'text-[9px] font-bold ' + (mood === emoji ? 'text-accent-600' : 'text-ink-400')}>{moodLabel}</span>
               </button>
             ))}
           </div>
         </div>
-        <div>
-          <div className={label}>Severity</div>
+
+        {/* Symptom — what's bothering you (optional) */}
+        <div className="rounded-2xl border border-line p-3">
+          <div className="flex items-center gap-1.5">
+            <span className="text-[12px]">🩺</span>
+            <span className="text-[12px] font-bold text-ink-700">Symptom</span>
+            <span className="text-[11px] font-medium text-ink-400">· optional</span>
+          </div>
+          <input
+            className={field + ' mt-2'}
+            placeholder="e.g. Headache, nausea, dizziness…"
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+          />
+          <div className={label + ' mt-2.5'}>Severity</div>
           <div className="mt-1.5 flex gap-2">
             {['Mild', 'Moderate', 'Severe'].map((s) => (
               <button
@@ -1190,9 +1301,9 @@ function LogSymptom() {
       </div>
       <Actions
         tone="accent"
-        confirmLabel="Log symptom"
+        confirmLabel="Log entry"
         onConfirm={() => {
-          logSymptom({ name: text.trim() || 'Symptom', severity, mood, user: member || null })
+          logSymptom({ name: text.trim() || 'Mood check', severity, mood, user: member || null })
           closeModal()
         }}
       />
@@ -1371,28 +1482,32 @@ function HistoryLog() {
 
         {/* Filters */}
         <div className="flex flex-wrap items-center gap-2 border-b border-line px-5 py-3">
-          <select className={selectCls} value={member} onChange={(e) => setMember(e.target.value)}>
-            <option value="all">All members</option>
-            {users.map((u) => (
-              <option key={u.id} value={u.id}>
-                {u.name}
-              </option>
-            ))}
-          </select>
-          <select className={selectCls} value={medName} onChange={(e) => setMedName(e.target.value)}>
-            <option value="all">All medicines</option>
-            {medNames.map((n) => (
-              <option key={n} value={n}>
-                {n}
-              </option>
-            ))}
-          </select>
-          <select className={selectCls} value={status} onChange={(e) => setStatus(e.target.value)}>
-            <option value="all">All statuses</option>
-            <option value="Taken">Taken</option>
-            <option value="Skipped">Skipped</option>
-            <option value="Missed">Missed</option>
-          </select>
+          <SelectField
+            value={member}
+            onChange={setMember}
+            wrapClass="relative w-36"
+            triggerClass={selectCls + ' w-full'}
+            options={[{ value: 'all', label: 'All members' }, ...users.map((u) => ({ value: u.id, label: u.name }))]}
+          />
+          <SelectField
+            value={medName}
+            onChange={setMedName}
+            wrapClass="relative w-40"
+            triggerClass={selectCls + ' w-full'}
+            options={[{ value: 'all', label: 'All medicines' }, ...medNames.map((n) => ({ value: n, label: n }))]}
+          />
+          <SelectField
+            value={status}
+            onChange={setStatus}
+            wrapClass="relative w-32"
+            triggerClass={selectCls + ' w-full'}
+            options={[
+              { value: 'all', label: 'All statuses' },
+              { value: 'Taken', label: 'Taken' },
+              { value: 'Skipped', label: 'Skipped' },
+              { value: 'Missed', label: 'Missed' },
+            ]}
+          />
           <button
             onClick={() => setSort((s) => (s === 'new' ? 'old' : 'new'))}
             className={selectCls + ' inline-flex items-center gap-1 hover:bg-page'}

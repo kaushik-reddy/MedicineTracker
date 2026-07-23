@@ -26,7 +26,7 @@ export const streak = []
 export const quickActions = [
   { icon: 'bellplus', tone: 'warn', title: 'Set Reminder', body: 'Customize dose reminders', action: 'set-reminder' },
   { icon: 'users', tone: 'brand', title: 'Manage Members', body: 'Add or remove members', action: 'manage-users' },
-  { icon: 'note', tone: 'accent', title: 'Log Symptom', body: 'Record how you feel', action: 'log-symptom' },
+  { icon: 'note', tone: 'accent', title: 'Log Mood / Symptom', body: 'Record how you feel', action: 'log-symptom' },
   { icon: 'download', tone: 'sky', title: 'Export Report', body: 'Download your report', action: 'export-report' },
 ]
 
