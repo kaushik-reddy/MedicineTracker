@@ -1619,6 +1619,21 @@ function HistoryLog() {
 
   const medNames = [...new Set(history.map((h) => h.name))].sort()
 
+  const statusBadge = {
+    Taken: 'bg-brand-50 text-brand-600',
+    Skipped: 'bg-amber-50 text-warn-500',
+    Missed: 'bg-rose-50 text-coral-500',
+    Snoozed: 'bg-amber-50 text-warn-500',
+    Rescheduled: 'bg-violet-50 text-accent-600',
+  }
+  const statusDot = {
+    Taken: 'bg-brand-500',
+    Skipped: 'bg-warn-500',
+    Missed: 'bg-coral-500',
+    Snoozed: 'bg-warn-500',
+    Rescheduled: 'bg-accent-500',
+  }
+
   let rows = history.filter(
     (h) =>
       (member === 'all' || h.user === member) &&
@@ -1669,6 +1684,8 @@ function HistoryLog() {
               { value: 'all', label: 'All statuses' },
               { value: 'Taken', label: 'Taken' },
               { value: 'Skipped', label: 'Skipped' },
+              { value: 'Snoozed', label: 'Snoozed' },
+              { value: 'Rescheduled', label: 'Rescheduled' },
               { value: 'Missed', label: 'Missed' },
             ]}
           />
@@ -1687,7 +1704,7 @@ function HistoryLog() {
             {rows.map((h, i) => {
               const u = usersById[h.user]
               const med = medications.find((m) => m.name === h.name) || { tone: h.tone || 'brand' }
-              const dotColor = h.status === 'Taken' ? 'bg-brand-500' : 'bg-warn-500'
+              const dotColor = statusDot[h.status] || 'bg-warn-500'
               return (
                 <div key={i} className="rounded-2xl border border-line p-3">
                   <div className="flex items-center justify-between gap-2">
@@ -1708,7 +1725,7 @@ function HistoryLog() {
                     <span
                       className={
                         'shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold ' +
-                        (h.status === 'Taken' ? 'bg-brand-50 text-brand-600' : 'bg-amber-50 text-warn-500')
+                        (statusBadge[h.status] || 'bg-amber-50 text-warn-500')
                       }
                     >
                       {h.status}
@@ -1730,6 +1747,14 @@ function HistoryLog() {
                         {h.status === 'Taken' ? (
                           <>
                             Taken <span className="font-bold text-brand-600">{h.marked || '—'}</span>
+                          </>
+                        ) : h.status === 'Snoozed' ? (
+                          <>
+                            Snoozed to <span className="font-bold text-warn-500">{h.marked || '—'}</span>
+                          </>
+                        ) : h.status === 'Rescheduled' ? (
+                          <>
+                            Moved to <span className="font-bold text-accent-600">{h.marked || '—'}</span>
                           </>
                         ) : (
                           <span className="font-bold text-warn-500">{h.status}</span>

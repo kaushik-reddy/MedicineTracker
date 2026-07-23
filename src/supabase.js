@@ -162,7 +162,7 @@ const rowToLog = (r) => ({
   status: r.status,
   date: r.scheduled_time ? `Today, ${r.scheduled_time}` : 'Today',
   day: 'Today',
-  tone: r.status === 'Skipped' ? 'warn' : 'brand',
+  tone: r.status === 'Rescheduled' ? 'accent' : r.status === 'Skipped' || r.status === 'Snoozed' ? 'warn' : 'brand',
 })
 
 const symptomToRow = (s) => ({

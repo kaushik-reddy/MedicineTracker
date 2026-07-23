@@ -56,7 +56,7 @@ export default function Header() {
         <Logo className="h-8 w-8" />
         <div className="leading-tight">
           <div className="text-[15px] font-extrabold text-ink-900">MediTrack</div>
-          <div className="text-[10px] font-medium text-ink-400">Track today. Heal tomorrow.</div>
+          <div className="hidden text-[10px] font-medium text-ink-400 sm:block">Track today. Heal tomorrow.</div>
         </div>
       </div>
 
@@ -78,7 +78,7 @@ export default function Header() {
             >
               <span ref={msgRef} className="flex items-center gap-1.5 whitespace-nowrap pl-3 pr-1.5">
                 <span className={'h-1.5 w-1.5 shrink-0 rounded-full ' + (toneDot[tone] || toneDot.brand)} />
-                <span className="text-[12px] font-semibold text-ink-700">{msg}</span>
+                <span className="max-w-[42vw] truncate text-[12px] font-semibold text-ink-700 sm:max-w-none">{msg}</span>
               </span>
             </span>
 
@@ -159,18 +159,18 @@ export default function Header() {
           )}
         </div>
 
-        <button className="flex items-center gap-2 rounded-full border border-line bg-white py-1 pl-1 pr-3 hover:bg-page transition-colors">
-          <span className="grid h-7 w-7 place-items-center rounded-full bg-brand-500 text-[12px] font-bold text-white">
+        <button className="flex items-center gap-2 rounded-full border border-line bg-white py-1 pl-1 pr-1 hover:bg-page transition-colors sm:pr-3">
+          <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-brand-500 text-[12px] font-bold text-white">
             {accountInitials}
           </span>
-          <span className="max-w-[120px] truncate text-[12px] font-semibold text-ink-700">{accountName}</span>
+          <span className="hidden max-w-[120px] truncate text-[12px] font-semibold text-ink-700 sm:block">{accountName}</span>
         </button>
 
         {authEnabled && session && (
           <button
             onClick={logout}
             title="Sign out"
-            className="rounded-full border border-line bg-white px-3 py-1.5 text-[12px] font-bold text-ink-500 hover:bg-page transition-colors"
+            className="shrink-0 rounded-full border border-line bg-white px-2.5 py-1.5 text-[12px] font-bold text-ink-500 hover:bg-page transition-colors sm:px-3"
           >
             Sign out
           </button>

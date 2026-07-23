@@ -75,7 +75,7 @@ create table if not exists public.dose_logs (
   scheduled_time  text,                          -- when the dose was due
   marked_time     text,                          -- when it was actually marked (null if not taken)
   status          text not null default 'Taken'
-                    check (status in ('Taken','Skipped','Missed','Upcoming')),
+                    check (status in ('Taken','Skipped','Missed','Upcoming','Snoozed','Rescheduled')),
   logged_at       timestamptz not null default now()
 );
 
@@ -146,6 +146,11 @@ alter table public.dose_logs add column if not exists scheduled_time text;
 alter table public.dose_logs add column if not exists marked_time    text;
 alter table public.dose_logs add column if not exists status         text not null default 'Taken';
 alter table public.dose_logs add column if not exists logged_at      timestamptz not null default now();
+
+-- Widen the status check to include Snoozed / Rescheduled events (idempotent).
+alter table public.dose_logs drop constraint if exists dose_logs_status_check;
+alter table public.dose_logs add constraint dose_logs_status_check
+  check (status in ('Taken','Skipped','Missed','Upcoming','Snoozed','Rescheduled'));
 
 -- symptoms
 alter table public.symptoms add column if not exists owner_id   uuid not null default auth.uid() references auth.users (id) on delete cascade;

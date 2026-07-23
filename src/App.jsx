@@ -19,14 +19,14 @@ function MobileApp() {
     <div className="no-scrollbar min-h-screen w-full overflow-y-auto overflow-x-hidden bg-page">
       <div className="mx-auto flex w-full max-w-md flex-col gap-3 px-3.5 pb-8 pt-4">
         <Header />
-        <div className={cell('h-[188px]')}><HeroCard className="h-full" /></div>
+        <div className={cell('h-[204px]')}><HeroCard className="h-full" /></div>
         <div className={cell('h-[236px]')}><NextDoseCard className="h-full" /></div>
         <div className={cell('h-[252px]')}><ScheduleCard className="h-full" /></div>
         <div className={cell('h-[320px]')}><MedsCard className="h-full" /></div>
         <div className={cell('h-[260px]')}><GlanceCard className="h-full" /></div>
         <div className={cell('h-[268px]')}><AdherenceCard className="h-full" /></div>
         <div className={cell('h-[300px]')}><InventoryCard className="h-full" /></div>
-        <div className={cell('h-[248px]')}><QuickActionsCard className="h-full" /></div>
+        <div className={cell('h-[300px]')}><QuickActionsCard className="h-full" /></div>
         <div className={cell('h-[300px]')}><HistoryCard className="h-full" /></div>
         <FooterBar className="h-6 shrink-0" />
       </div>

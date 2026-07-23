@@ -31,6 +31,14 @@ export function HistoryCard({ className = '' }) {
     Severe: 'bg-rose-50 text-coral-500',
   }
 
+  const statusBadge = {
+    Taken: 'bg-brand-50 text-brand-600',
+    Skipped: 'bg-amber-50 text-warn-500',
+    Missed: 'bg-rose-50 text-coral-500',
+    Snoozed: 'bg-amber-50 text-warn-500',
+    Rescheduled: 'bg-violet-50 text-accent-600',
+  }
+
   return (
     <Card className={'flex flex-col p-4 ' + className}>
       <div className="flex items-center justify-between">
@@ -85,7 +93,7 @@ export function HistoryCard({ className = '' }) {
                   </div>
                 )
               }
-              const taken = h.status === 'Taken'
+              const moved = h.status === 'Snoozed' || h.status === 'Rescheduled'
               return (
                 <div
                   key={h.id}
@@ -105,12 +113,14 @@ export function HistoryCard({ className = '' }) {
                         </span>
                       )}
                     </div>
-                    <div className="truncate text-[10px] text-ink-400">{h.date}</div>
+                    <div className="truncate text-[10px] text-ink-400">
+                      {moved && h.scheduled && h.marked ? `${h.scheduled} → ${h.marked}` : h.date}
+                    </div>
                   </div>
                   <span
                     className={
                       'shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold ' +
-                      (taken ? 'bg-brand-50 text-brand-600' : 'bg-amber-50 text-warn-500')
+                      (statusBadge[h.status] || 'bg-amber-50 text-warn-500')
                     }
                   >
                     {h.status}

@@ -406,10 +406,11 @@ export function AppProvider({ children }) {
       )
       if (acted) {
         db.updateMedication(acted.id, { time, label: hourLabel(time) })
+        pushHistory({ ts: Date.now(), day: 'Today', date: `Today, ${time}`, scheduled: acted.time, marked: time, name: acted.name, dose: acted.dosage, status: 'Rescheduled', tone: 'accent', user: acted.user })
         showToast(`${acted.name} rescheduled to ${time}`, 'accent')
       }
     },
-    [showToast],
+    [pushHistory, showToast],
   )
 
   // Add (or update) a medication on the schedule with chosen time/frequency.
@@ -477,10 +478,11 @@ export function AppProvider({ children }) {
       )
       if (acted) {
         db.updateMedication(acted.id, { time, label: hourLabel(time), taken: false, skipped: false })
+        pushHistory({ ts: Date.now(), day: 'Today', date: `Today, ${time}`, scheduled: acted.time, marked: time, name: acted.name, dose: acted.dosage, status: 'Snoozed', tone: 'warn', user: acted.user })
         showToast(`${acted.name} snoozed ${mins} min · now ${time}`, 'warn')
       }
     },
-    [showToast],
+    [pushHistory, showToast],
   )
 
   // Snooze to an exact precomputed time (used after a confirmation dialog).
@@ -496,10 +498,11 @@ export function AppProvider({ children }) {
       )
       if (acted) {
         db.updateMedication(acted.id, { time, label: hourLabel(time), taken: false, skipped: false })
+        pushHistory({ ts: Date.now(), day: 'Today', date: `Today, ${time}`, scheduled: acted.time, marked: time, name: acted.name, dose: acted.dosage, status: 'Snoozed', tone: 'warn', user: acted.user })
         showToast(`${acted.name} snoozed ${mins} min · now ${time}`, 'warn')
       }
     },
-    [showToast],
+    [pushHistory, showToast],
   )
 
   const restock = useCallback(
