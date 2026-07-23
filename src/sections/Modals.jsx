@@ -209,6 +209,19 @@ function DateField({ value, onChange }) {
   )
 }
 
+// Titled section card used to group fields in the medication form.
+function FormSection({ title, icon: Icon, children }) {
+  return (
+    <div className="rounded-2xl border border-line bg-white p-3.5">
+      <div className="mb-2.5 flex items-center gap-1.5">
+        {Icon && <Icon className="h-3.5 w-3.5 text-accent-500" />}
+        <span className="text-[10px] font-bold uppercase tracking-wide text-ink-400">{title}</span>
+      </div>
+      <div className="space-y-3">{children}</div>
+    </div>
+  )
+}
+
 function LogDose() {
   const { medications, logDose, closeModal } = useApp()
   const [name, setName] = useState(medications[0]?.name || '')
@@ -328,6 +341,7 @@ function MedicationForm({ mode = 'add', med = null }) {
     }
     closeModal()
   }
+  const owner = users.find((u) => u.id === form.user)
   return (
     <Shell
       icon={Pill}
@@ -335,135 +349,155 @@ function MedicationForm({ mode = 'add', med = null }) {
       title={isEdit ? 'Edit Medication' : 'Add Medication'}
       subtitle={isEdit ? 'Update the details of this medication' : 'Add a new medication to your list'}
     >
-      <div className="max-h-[62vh] space-y-3 overflow-y-auto no-scrollbar pr-0.5">
-        <div>
-          <div className={label}>Name</div>
-          <input className={field + ' mt-1'} placeholder="e.g. Ibuprofen" value={form.name} onChange={set('name')} />
-        </div>
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <div className={label}>Dosage</div>
-            <input className={field + ' mt-1'} placeholder="e.g. 200 mg" value={form.dosage} onChange={set('dosage')} />
-          </div>
-          <div>
-            <div className={label}>Unit</div>
-            <input className={field + ' mt-1'} value={form.unit} onChange={set('unit')} />
+      {/* Live preview of the medication being created/edited */}
+      <div className="mb-3 flex items-center gap-3 rounded-2xl border border-line bg-gradient-to-br from-violet-50/70 via-white to-white p-3">
+        <span className="grid h-12 w-12 shrink-0 place-items-center overflow-hidden rounded-2xl border border-line bg-white">
+          <MedGlyph med={{ image: form.image, tone: form.tone }} className="h-8 w-8" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <div className="truncate text-[14px] font-extrabold text-ink-900">{form.name.trim() || 'New medication'}</div>
+          <div className="truncate text-[11px] text-ink-500">
+            {[form.dosage, form.frequency].filter(Boolean).join(' · ') || 'Fill in the details below'}
           </div>
         </div>
+        {owner && <UserAvatar user={owner} className="h-8 w-8 text-[11px]" />}
+      </div>
 
-        <div>
-          <div className={label}>Frequency</div>
-          <div className="mt-1.5 grid grid-cols-3 gap-2">
-            {FREQUENCIES.map((f) => (
-              <button
-                key={f}
-                type="button"
-                onClick={() => setForm((s) => ({ ...s, frequency: f }))}
-                className={
-                  'rounded-xl border py-2 text-[12px] font-bold transition-colors ' +
-                  (form.frequency === f ? chipOn : chipOff)
-                }
-              >
-                {f}
-              </button>
-            ))}
+      <div className="max-h-[54vh] space-y-3 overflow-y-auto no-scrollbar pr-0.5">
+        <FormSection title="Details" icon={Pill}>
+          <div>
+            <div className={label}>Name</div>
+            <input className={field + ' mt-1'} placeholder="e.g. Ibuprofen" value={form.name} onChange={set('name')} />
           </div>
-        </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <div className={label}>Dosage</div>
+              <input className={field + ' mt-1'} placeholder="e.g. 200 mg" value={form.dosage} onChange={set('dosage')} />
+            </div>
+            <div>
+              <div className={label}>Unit</div>
+              <input className={field + ' mt-1'} value={form.unit} onChange={set('unit')} />
+            </div>
+          </div>
+        </FormSection>
 
-        <div>
-          <div className={label}>Repeat on</div>
-          <div className="mt-1.5 grid grid-cols-7 gap-1.5">
-            {WEEKDAYS.map((d, i) => {
-              const on = form.activeDays.includes(d.key)
-              return (
+        <FormSection title="Schedule" icon={CalendarDays}>
+          <div>
+            <div className={label}>Frequency</div>
+            <div className="mt-1.5 grid grid-cols-3 gap-2">
+              {FREQUENCIES.map((f) => (
                 <button
-                  key={i}
+                  key={f}
                   type="button"
-                  title={d.key}
-                  onClick={() => toggleDay(d.key)}
+                  onClick={() => setForm((s) => ({ ...s, frequency: f }))}
                   className={
-                    'grid h-9 place-items-center rounded-lg border text-[12px] font-bold transition-colors ' +
-                    (on ? chipOn : chipOff)
+                    'rounded-xl border py-2 text-[12px] font-bold transition-colors ' +
+                    (form.frequency === f ? chipOn : chipOff)
                   }
                 >
-                  {d.short}
+                  {f}
                 </button>
-              )
-            })}
-          </div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <div className={label}>Start tracking</div>
-            <DateField value={form.startDate} onChange={(v) => setForm((f) => ({ ...f, startDate: v }))} />
-          </div>
-          <div>
-            <div className={label}>Time</div>
-            <input className={field + ' mt-1'} value={form.time} onChange={set('time')} />
-          </div>
-        </div>
-
-        <div>
-          <div className={label}>{isEdit ? 'Stock in hand' : 'Quantity in stock'}</div>
-          <div className="mt-1 flex items-center gap-2">
-            <input
-              type="number"
-              min="0"
-              inputMode="numeric"
-              className={field}
-              placeholder={isEdit ? 'Leave blank to keep current' : 'e.g. 30'}
-              value={form.quantity}
-              onChange={set('quantity')}
-            />
-            <span className="shrink-0 text-[12px] font-semibold text-ink-400">units</span>
-          </div>
-          <p className="mt-1 text-[11px] text-ink-400">
-            {isEdit
-              ? 'Current stock — change the count to update your inventory.'
-              : 'How many doses you currently have — used to track your inventory.'}
-          </p>
-        </div>
-
-        <div>
-          <div className={label}>Member</div>
-          <div className="mt-1.5 flex gap-2">
-            {users.map((u) => (
-              <button
-                key={u.id}
-                onClick={() => setForm((f) => ({ ...f, user: u.id }))}
-                className={
-                  'flex items-center gap-1.5 rounded-full border py-1 pl-1 pr-2.5 transition-colors ' +
-                  (form.user === u.id ? 'border-brand-400 bg-brand-50' : 'border-line hover:bg-page')
-                }
-              >
-                <UserAvatar user={u} className="h-5 w-5 text-[9px]" />
-                <span className="text-[11px] font-bold text-ink-700">{u.name}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div>
-          <div className={label}>Colour &amp; image</div>
-          <div className="mt-1.5 flex items-center gap-3">
-            <div className="flex gap-2">
-              {tones.map(([t, bg]) => (
-                <button
-                  key={t}
-                  onClick={() => setForm((f) => ({ ...f, tone: t }))}
-                  className={`h-8 w-8 rounded-full ${bg} ${form.tone === t ? 'ring-2 ring-ink-900 ring-offset-2' : ''}`}
-                />
               ))}
             </div>
-            <ImageUploader
-              med={{ image: form.image, tone: form.tone }}
-              onPick={(img) => setForm((f) => ({ ...f, image: img }))}
-              size="h-10 w-10"
-            />
-            <span className="text-[11px] text-ink-400">Upload photo (optional)</span>
           </div>
-        </div>
+
+          <div>
+            <div className={label}>Repeat on</div>
+            <div className="mt-1.5 grid grid-cols-7 gap-1.5">
+              {WEEKDAYS.map((d, i) => {
+                const on = form.activeDays.includes(d.key)
+                return (
+                  <button
+                    key={i}
+                    type="button"
+                    title={d.key}
+                    onClick={() => toggleDay(d.key)}
+                    className={
+                      'grid h-9 place-items-center rounded-lg border text-[12px] font-bold transition-colors ' +
+                      (on ? chipOn : chipOff)
+                    }
+                  >
+                    {d.short}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <div className={label}>Start tracking</div>
+              <DateField value={form.startDate} onChange={(v) => setForm((f) => ({ ...f, startDate: v }))} />
+            </div>
+            <div>
+              <div className={label}>Time</div>
+              <input className={field + ' mt-1'} value={form.time} onChange={set('time')} />
+            </div>
+          </div>
+        </FormSection>
+
+        <FormSection title="Stock & member" icon={Users}>
+          <div>
+            <div className={label}>{isEdit ? 'Stock in hand' : 'Quantity in stock'}</div>
+            <div className="mt-1 flex items-center gap-2">
+              <input
+                type="number"
+                min="0"
+                inputMode="numeric"
+                className={field}
+                placeholder={isEdit ? 'Leave blank to keep current' : 'e.g. 30'}
+                value={form.quantity}
+                onChange={set('quantity')}
+              />
+              <span className="shrink-0 text-[12px] font-semibold text-ink-400">units</span>
+            </div>
+            <p className="mt-1 text-[11px] text-ink-400">
+              {isEdit
+                ? 'Current stock — change the count to update your inventory.'
+                : 'How many doses you currently have — used to track your inventory.'}
+            </p>
+          </div>
+
+          <div>
+            <div className={label}>Member</div>
+            <div className="mt-1.5 flex flex-wrap gap-2">
+              {users.map((u) => (
+                <button
+                  key={u.id}
+                  onClick={() => setForm((f) => ({ ...f, user: u.id }))}
+                  className={
+                    'flex items-center gap-1.5 rounded-full border py-1 pl-1 pr-2.5 transition-colors ' +
+                    (form.user === u.id ? 'border-brand-400 bg-brand-50' : 'border-line hover:bg-page')
+                  }
+                >
+                  <UserAvatar user={u} className="h-5 w-5 text-[9px]" />
+                  <span className="text-[11px] font-bold text-ink-700">{u.name}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <div className={label}>Colour &amp; image</div>
+            <div className="mt-1.5 flex items-center gap-3">
+              <div className="flex gap-2">
+                {tones.map(([t, bg]) => (
+                  <button
+                    key={t}
+                    onClick={() => setForm((f) => ({ ...f, tone: t }))}
+                    className={`h-8 w-8 rounded-full ${bg} ${form.tone === t ? 'ring-2 ring-ink-900 ring-offset-2' : ''}`}
+                  />
+                ))}
+              </div>
+              <ImageUploader
+                med={{ image: form.image, tone: form.tone }}
+                onPick={(img) => setForm((f) => ({ ...f, image: img }))}
+                size="h-10 w-10"
+              />
+              <span className="text-[11px] text-ink-400">Upload photo (optional)</span>
+            </div>
+          </div>
+        </FormSection>
 
         <div className="rounded-2xl border border-line p-3">
           <button
@@ -1012,12 +1046,15 @@ function MedDetails() {
         ? 'text-warn-500'
         : 'text-accent-600'
 
+  // Prominent facts shown as tiles; the rest go in the detail list below.
+  const quickStats = [
+    { label: 'Dosage', value: `${med.dosage} • ${med.unit}`, icon: Pill },
+    { label: 'Frequency', value: med.frequency, icon: RefreshCw },
+    { label: 'Time', value: med.time, icon: Bell },
+  ]
   const rows = [
     ['Member', owner ? owner.full || owner.name : '—'],
     ['Generic name', med.sub],
-    ['Dosage', `${med.dosage} • ${med.unit}`],
-    ['Frequency', med.frequency],
-    ['Time', med.time],
   ]
   if (med.activeDays && med.activeDays.length && med.activeDays.length < 7) {
     rows.push(['Repeats on', med.activeDays.join(', ')])
@@ -1071,7 +1108,20 @@ function MedDetails() {
         </div>
 
         <div className="flex-1 overflow-y-auto no-scrollbar px-6">
-          <div className="divide-y divide-line rounded-2xl border border-line">
+          {/* Quick facts */}
+          <div className="grid grid-cols-3 gap-2">
+            {quickStats.map((s) => (
+              <div key={s.label} className="rounded-2xl border border-line bg-page/40 p-2.5 text-center">
+                <s.icon className="mx-auto h-4 w-4 text-accent-500" />
+                <div className="mt-1 truncate text-[12px] font-extrabold text-ink-900" title={s.value}>
+                  {s.value}
+                </div>
+                <div className="text-[9px] font-bold uppercase tracking-wide text-ink-400">{s.label}</div>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-3 divide-y divide-line rounded-2xl border border-line">
             {rows.map(([k, v]) => (
               <div key={k} className="flex items-start justify-between gap-3 px-4 py-2.5">
                 <span className="shrink-0 text-[12px] font-semibold text-ink-500">{k}</span>
@@ -1083,8 +1133,8 @@ function MedDetails() {
           <div className="mt-4 text-[11px] font-bold uppercase tracking-wide text-ink-400">Medical information</div>
           <div className="mt-2 space-y-2.5">
             {infoRows.map(([k, v]) => (
-              <div key={k} className="rounded-2xl bg-page/50 p-3">
-                <div className="text-[11px] font-bold text-ink-500">{k}</div>
+              <div key={k} className="rounded-2xl border border-line bg-page/40 p-3">
+                <div className="text-[11px] font-bold text-accent-600">{k}</div>
                 <div className="mt-0.5 text-[12px] leading-snug text-ink-700">{v}</div>
               </div>
             ))}
