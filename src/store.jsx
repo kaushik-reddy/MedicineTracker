@@ -59,6 +59,26 @@ function reconcileMedsForToday(meds, history) {
   return { next, changed }
 }
 
+// Ensure each inventory row is owned by the same member as its medication. Older
+// stock rows can carry a stale member_id; the medication is the source of truth.
+function reconcileInventoryOwners(inventory, medications) {
+  const byId = Object.fromEntries(medications.map((m) => [m.id, m]))
+  const changed = []
+  const next = inventory.map((it) => {
+    let med = it.medicationId ? byId[it.medicationId] : null
+    if (!med) {
+      const matches = medications.filter((m) => m.name === it.name)
+      if (matches.length === 1) med = matches[0] // unambiguous name link
+    }
+    if (!med) return it
+    if (it.user === med.user && it.medicationId === med.id) return it
+    const nm = { ...it, user: med.user, medicationId: med.id }
+    changed.push(nm)
+    return nm
+  })
+  return { next, changed }
+}
+
 export function AppProvider({ children }) {
   const [medications, setMedications] = useState(medsSeed)
   const [inventory, setInventory] = useState(invSeed)
@@ -112,12 +132,15 @@ export function AppProvider({ children }) {
       if (data) {
         // Roll over any stale taken/skipped flags from previous days on load.
         const { next, changed } = reconcileMedsForToday(data.medications, data.history)
+        // Repair inventory rows whose member drifted from their medication.
+        const inv = reconcileInventoryOwners(data.inventory, next)
         setUsers(data.users)
         setMedications(next)
-        setInventory(data.inventory)
+        setInventory(inv.next)
         setHistory(data.history)
         setSymptoms(data.symptoms ?? [])
         changed.forEach((m) => db.updateMedication(m.id, { taken: false, skipped: false }))
+        inv.changed.forEach((it) => db.upsertInventory(it))
       }
       setDataLoading(false)
     })
