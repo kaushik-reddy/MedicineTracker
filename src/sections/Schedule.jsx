@@ -12,8 +12,16 @@ const GAP = 16
 // Full date like "23 Jul 2026" for the timeline day markers.
 const fmtDate = (d) => d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
 
-function buildSlots(schedule, scheduleTomorrow) {
+// "8:00 AM" -> "8 AM" for the timeline node label.
+const hourLabel = (t) => {
+  const m = String(t).match(/(\d+):\d+\s*(AM|PM)/i)
+  return m ? `${Number(m[1])} ${m[2].toUpperCase()}` : t || ''
+}
+
+function buildSlots(scheduleYesterday, schedule, scheduleTomorrow) {
   const slots = []
+  scheduleYesterday.forEach((m) => slots.push({ key: 'ty-' + m.id, type: 'dose', med: m, day: 'Yesterday' }))
+  if (scheduleYesterday.length) slots.push({ key: 'done-y', type: 'done', day: 'Yesterday' })
   schedule.forEach((m) => slots.push({ key: 't0-' + m.id, type: 'dose', med: m, day: 'Today' }))
   slots.push({ key: 'done-0', type: 'done', day: 'Today' })
   scheduleTomorrow.forEach((m) =>
@@ -42,13 +50,38 @@ function Node({ state }) {
 }
 
 export function ScheduleCard({ className = '' }) {
-  const { schedule, scheduleTomorrow, nextDose, openModal, usersById } = useApp()
-  const slots = buildSlots(schedule, scheduleTomorrow)
+  const { schedule, scheduleTomorrow, nextDose, openModal, usersById, history } = useApp()
   const today = istCalendarDate()
-  const dateForDay = (day) => (day === 'Tomorrow' ? addDays(today, 1) : today)
+  const yesterday = addDays(today, -1)
+  const dateForDay = (day) => (day === 'Tomorrow' ? addDays(today, 1) : day === 'Yesterday' ? yesterday : today)
 
-  let activeIndex = schedule.findIndex((m) => !m.taken && !m.skipped)
-  if (activeIndex === -1) activeIndex = schedule.length // "all done today" card
+  // Reconstruct yesterday's doses from the dose-log history so the timeline shows
+  // what was completed on the previous day, to the left of today.
+  const scheduleYesterday = useMemo(() => {
+    return history
+      .filter(
+        (h) => h.ts && sameDay(istCalendarDate(h.ts), yesterday) && (h.status === 'Taken' || h.status === 'Skipped'),
+      )
+      .map((h) => ({
+        id: 'y-' + (h.id || `${h.ts}-${h.name}`),
+        name: h.name,
+        tone: h.tone || 'brand',
+        user: h.user,
+        time: h.scheduled || h.marked || '',
+        label: hourLabel(h.scheduled || h.marked || ''),
+        dosage: h.dose || '',
+        unit: '',
+        taken: h.status === 'Taken',
+        skipped: h.status === 'Skipped',
+      }))
+  }, [history, yesterday])
+
+  const slots = buildSlots(scheduleYesterday, schedule, scheduleTomorrow)
+
+  // The active node is today's next unmarked dose, else today's "done" card.
+  let activeIndex = slots.findIndex((s) => s.day === 'Today' && s.type === 'dose' && !s.med.taken && !s.med.skipped)
+  if (activeIndex === -1) activeIndex = slots.findIndex((s) => s.day === 'Today' && s.type === 'done')
+  if (activeIndex === -1) activeIndex = 0
 
   const viewportRef = useRef(null)
   const [vw, setVw] = useState(0)
@@ -66,7 +99,7 @@ export function ScheduleCard({ className = '' }) {
   const offset = vw / 2 - (activeIndex * step + CARD / 2)
 
   const stateOf = (slot, i) => {
-    if (slot.type === 'done') return i === activeIndex ? 'active' : 'upcoming'
+    if (slot.type === 'done') return i === activeIndex ? 'active' : i < activeIndex ? 'done' : 'upcoming'
     const m = slot.med
     return m.taken ? 'done' : m.skipped ? 'skipped' : i === activeIndex ? 'active' : 'upcoming'
   }
@@ -178,8 +211,10 @@ export function ScheduleCard({ className = '' }) {
                         : 'border-line bg-white ' + dim)
                     }
                   >
-                    <span className="text-2xl">🎉</span>
-                    <div className="mt-1 text-[12px] font-extrabold leading-tight text-ink-900">All doses done</div>
+                    <span className="text-2xl">{slot.day === 'Yesterday' ? '📋' : '🎉'}</span>
+                    <div className="mt-1 text-[12px] font-extrabold leading-tight text-ink-900">
+                      {slot.day === 'Yesterday' ? 'Day complete' : 'All doses done'}
+                    </div>
                     <div className="text-[10px] font-semibold text-brand-600">for {slot.day}</div>
                     <div className="mt-0.5 text-[9px] font-bold text-ink-400">{fmtDate(dateForDay(slot.day))}</div>
                   </div>
