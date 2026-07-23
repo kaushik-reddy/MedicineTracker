@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useLayoutEffect } from 'react'
-import { Logo, Bell, Clock } from '../icons.jsx'
+import { Logo, Bell, Clock, CheckCircle } from '../icons.jsx'
 import { user } from '../data.js'
 import { useApp } from '../store.jsx'
 
@@ -98,7 +98,10 @@ export default function Header() {
                 <span className="ml-1 text-ink-400">· {upcoming.length} upcoming</span>
               </div>
               {upcoming.length === 0 ? (
-                <div className="px-4 py-4 text-center text-[12px] text-ink-400">All caught up! 🎉</div>
+                <div className="px-4 py-4 text-center text-[12px] text-ink-400">
+                  <CheckCircle className="mx-auto mb-1 h-5 w-5 text-brand-400" />
+                  All caught up!
+                </div>
               ) : (
                 <div className="max-h-56 overflow-y-auto scroll-thin p-1">
                   {upcoming.map((m) => (

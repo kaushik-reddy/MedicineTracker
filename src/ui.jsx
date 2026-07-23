@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { ChevronDown } from './icons.jsx'
+import { ChevronDown, Pill } from './icons.jsx'
 
 // Tone → tailwind class maps used across cards/badges.
 export const toneSoft = {
@@ -152,7 +152,12 @@ const pillByTone = {
 
 export function PillGlyph({ tone = 'brand', className = '' }) {
   const [failed, setFailed] = useState(false)
-  if (failed) return <span className={className + ' grid place-items-center'}>💊</span>
+  if (failed)
+    return (
+      <span className={className + ' grid place-items-center text-ink-400'}>
+        <Pill className="h-3/4 w-3/4" />
+      </span>
+    )
   return (
     <img
       src={pillByTone[tone] || pillByTone.brand}

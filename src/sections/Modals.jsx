@@ -22,6 +22,11 @@ import {
   Users,
   Plus,
   RefreshCw as RestockIcon,
+  Heart,
+  Droplet,
+  MoodFace,
+  MOODS,
+  MOOD_LABEL,
 } from '../icons.jsx'
 import { PillGlyph, MedGlyph, UserAvatar } from '../ui.jsx'
 import { ScheduleTimeline, Calendar } from './ScheduleView.jsx'
@@ -259,7 +264,7 @@ function MedicationForm({ mode = 'add', med = null }) {
   const isEdit = mode === 'edit'
   const info = med?.info || {}
   // For edit, pre-fill the current stock so the user can see and adjust it.
-  const invItem = med ? inventory.find((it) => it.medicationId === med.id || it.name === med.name) : null
+  const invItem = med ? inventory.find((it) => it.medicationId === med.id) : null
   const perDayInit = med?.frequency === 'Twice daily' ? 2 : med?.frequency === 'Weekly' ? 1 / 7 : 1
   const initialQty = isEdit && invItem ? String(Math.max(0, Math.round(invItem.days * perDayInit))) : ''
   const [form, setForm] = useState({
@@ -1181,8 +1186,8 @@ function MedDetails() {
 }
 
 function Restock() {
-  const { restockName, inventory, restock, closeModal } = useApp()
-  const item = inventory.find((it) => it.name === restockName)
+  const { restockId, inventory, restock, closeModal } = useApp()
+  const item = inventory.find((it) => it.id === restockId)
   const [qty, setQty] = useState(30)
   if (!item) return null
 
@@ -1245,7 +1250,7 @@ function Restock() {
         tone="brand"
         confirmLabel="Restock"
         onConfirm={() => {
-          restock(item.name, qty)
+          restock(item.id, qty)
           closeModal()
         }}
       />
@@ -1257,15 +1262,8 @@ function LogSymptom() {
   const { logSymptom, closeModal, users } = useApp()
   const [text, setText] = useState('')
   const [severity, setSeverity] = useState('Mild')
-  const [mood, setMood] = useState('🙂')
+  const [mood, setMood] = useState('good')
   const [member, setMember] = useState(users[0]?.id ?? '')
-  const moods = [
-    ['😀', 'Great'],
-    ['🙂', 'Good'],
-    ['😐', 'Okay'],
-    ['🙁', 'Low'],
-    ['😣', 'Bad'],
-  ]
   const sevCls = {
     Mild: 'border-brand-400 bg-brand-50 text-brand-600',
     Moderate: 'border-amber-400 bg-amber-50 text-warn-500',
@@ -1298,22 +1296,22 @@ function LogSymptom() {
         {/* Mood — how you feel overall */}
         <div className="rounded-2xl border border-line p-3">
           <div className="flex items-center gap-1.5">
-            <span className="text-[12px]">🧠</span>
+            <Heart className="h-3.5 w-3.5 text-accent-500" />
             <span className="text-[12px] font-bold text-ink-700">Mood</span>
             <span className="text-[11px] font-medium text-ink-400">· how you feel overall</span>
           </div>
           <div className="mt-2 flex gap-2">
-            {moods.map(([emoji, moodLabel]) => (
+            {MOODS.map((key) => (
               <button
-                key={emoji}
-                onClick={() => setMood(emoji)}
+                key={key}
+                onClick={() => setMood(key)}
                 className={
-                  'flex flex-1 flex-col items-center gap-0.5 rounded-xl border py-1.5 transition-colors ' +
-                  (mood === emoji ? 'border-accent-400 bg-violet-50' : 'border-line hover:bg-page')
+                  'flex flex-1 flex-col items-center gap-1 rounded-xl border py-2 transition-colors ' +
+                  (mood === key ? 'border-accent-400 bg-violet-50 text-accent-600' : 'border-line text-ink-400 hover:bg-page')
                 }
               >
-                <span className="text-[20px] leading-none">{emoji}</span>
-                <span className={'text-[9px] font-bold ' + (mood === emoji ? 'text-accent-600' : 'text-ink-400')}>{moodLabel}</span>
+                <MoodFace mood={key} className="h-6 w-6" />
+                <span className={'text-[9px] font-bold ' + (mood === key ? 'text-accent-600' : 'text-ink-400')}>{MOOD_LABEL[key]}</span>
               </button>
             ))}
           </div>
@@ -1322,7 +1320,7 @@ function LogSymptom() {
         {/* Symptom — what's bothering you (optional) */}
         <div className="rounded-2xl border border-line p-3">
           <div className="flex items-center gap-1.5">
-            <span className="text-[12px]">🩺</span>
+            <Droplet className="h-3.5 w-3.5 text-accent-500" />
             <span className="text-[12px] font-bold text-ink-700">Symptom</span>
             <span className="text-[11px] font-medium text-ink-400">· optional</span>
           </div>

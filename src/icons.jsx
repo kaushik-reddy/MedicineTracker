@@ -280,3 +280,30 @@ export function Users({ className = '' }) {
     </svg>
   )
 }
+
+// Mood keys used across the app, in order from best to worst.
+export const MOODS = ['great', 'good', 'okay', 'low', 'bad']
+export const MOOD_LABEL = { great: 'Great', good: 'Good', okay: 'Okay', low: 'Low', bad: 'Bad' }
+// Back-compat: map legacy stored emojis to mood keys.
+const EMOJI_TO_MOOD = { '😀': 'great', '🙂': 'good', '😐': 'okay', '🙁': 'low', '😣': 'bad' }
+export const moodKey = (m) => (MOODS.includes(m) ? m : EMOJI_TO_MOOD[m] || 'okay')
+
+// Icon-based mood face (replaces mood emojis). `mood` is a key or legacy emoji.
+export function MoodFace({ mood, className = '' }) {
+  const idx = MOODS.indexOf(moodKey(mood))
+  const mouths = [
+    'M8 13.5 Q12 18.5 16 13.5', // great
+    'M8 14 Q12 16.5 16 14', // good
+    'M8.5 15 H15.5', // okay
+    'M8 15.5 Q12 13.8 16 15.5', // low
+    'M8.5 16 Q12 12.8 15.5 16', // bad
+  ]
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none">
+      <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.6" />
+      <circle cx="9" cy="10" r="1" fill="currentColor" />
+      <circle cx="15" cy="10" r="1" fill="currentColor" />
+      <path d={mouths[idx >= 0 ? idx : 2]} stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}

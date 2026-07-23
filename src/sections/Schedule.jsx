@@ -211,7 +211,9 @@ export function ScheduleCard({ className = '' }) {
                         : 'border-line bg-white ' + dim)
                     }
                   >
-                    <span className="text-2xl">{slot.day === 'Yesterday' ? '📋' : '🎉'}</span>
+                    <span className="grid h-8 w-8 place-items-center rounded-full bg-brand-50 text-brand-500">
+                      <CheckCircle className="h-6 w-6" />
+                    </span>
                     <div className="mt-1 text-[12px] font-extrabold leading-tight text-ink-900">
                       {slot.day === 'Yesterday' ? 'Day complete' : 'All doses done'}
                     </div>

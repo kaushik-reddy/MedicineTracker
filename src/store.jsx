@@ -235,9 +235,9 @@ export function AppProvider({ children }) {
     setModal('edit-medication')
   }, [])
 
-  const [restockName, setRestockName] = useState(null)
-  const openRestock = useCallback((name) => {
-    setRestockName(name)
+  const [restockId, setRestockId] = useState(null)
+  const openRestock = useCallback((id) => {
+    setRestockId(id)
     setModal('restock')
   }, [])
 
@@ -503,18 +503,19 @@ export function AppProvider({ children }) {
   )
 
   const restock = useCallback(
-    (name, days = 30) => {
-      const changed = []
+    (invId, days = 30) => {
+      let nm = null
       setInventory((inv) =>
         inv.map((it) => {
-          if (it.name !== name) return it
-          const next = { ...it, days: it.days + days, pct: 100, tone: 'brand' }
-          changed.push(next)
-          return next
+          if (it.id !== invId) return it
+          nm = { ...it, days: it.days + days, pct: 100 }
+          return nm
         }),
       )
-      db.upsertInventoryMany(changed)
-      showToast(`${name} restocked · +${days} units`, 'brand')
+      if (nm) {
+        db.upsertInventory(nm)
+        showToast(`${nm.name} restocked · +${days} units`, 'brand')
+      }
     },
     [showToast],
   )
@@ -573,18 +574,16 @@ export function AppProvider({ children }) {
         let invUpdated = null
         setInventory((inv) => {
           let found = false
-          // Match by explicit link first; fall back to name+member for older rows
-          // that were created before medications and inventory were linked.
+          // Match strictly by the medication link so a duplicate (different med id)
+          // can never be updated when its sibling is edited.
           const next = inv.map((it) => {
-            const linked = it.medicationId && it.medicationId === id
-            const byName = !it.medicationId && it.name === updated.name && it.user === updated.user
-            if (!linked && !byName) return it
+            if (it.medicationId !== id) return it
             found = true
-            invUpdated = { ...it, medicationId: id, name: updated.name, user: updated.user, days, pct: 100, detail }
+            invUpdated = { ...it, name: updated.name, user: updated.user, days, pct: 100, detail }
             return invUpdated
           })
           if (found) return next
-          // No stock row yet — create one linked to this medication.
+          // No linked stock row yet — create one for this medication only.
           invUpdated = {
             id: newId(),
             medicationId: id,
@@ -610,18 +609,25 @@ export function AppProvider({ children }) {
       const src = medications.find((m) => m.id === id)
       if (!src) return
       const copyId = newId()
-      const copy = { ...src, id: copyId, name: `${src.name} (copy)`, taken: false, skipped: false }
+      const copyName = `${src.name} (copy)`
+      const copy = { ...src, id: copyId, name: copyName, taken: false, skipped: false }
       setMedications((list) => [...list, copy])
 
+      // Always give the copy its OWN inventory row (own id + link + name) so edits
+      // to either medication never affect the other.
       const srcInv = inventory.find((it) => it.medicationId === id)
-      let invCopy = null
-      if (srcInv) {
-        invCopy = { ...srcInv, id: newId(), medicationId: copyId }
-        setInventory((list) => [...list, invCopy])
+      const invCopy = {
+        id: newId(),
+        medicationId: copyId,
+        name: copyName,
+        detail: srcInv?.detail ?? '',
+        days: srcInv?.days ?? 30,
+        pct: srcInv?.pct ?? 100,
+        tone: copy.tone,
+        user: copy.user,
       }
-      db.upsertMedication(copy).then(() => {
-        if (invCopy) db.upsertInventory(invCopy)
-      })
+      setInventory((list) => [...list, invCopy])
+      db.upsertMedication(copy).then(() => db.upsertInventory(invCopy))
 
       setConfirm({ medId: copyId })
       setModal('edit-medication')
@@ -668,7 +674,7 @@ export function AppProvider({ children }) {
       setSymptoms((list) => [entry, ...list].slice(0, 200))
       db.insertSymptom(entry)
       const tone = severity === 'Severe' ? 'coral' : severity === 'Moderate' ? 'warn' : 'brand'
-      showToast(`Logged · ${clean}${mood ? ` ${mood}` : ''}`, tone)
+      showToast(`Logged · ${clean}`, tone)
     },
     [showToast],
   )
@@ -728,7 +734,7 @@ export function AppProvider({ children }) {
     openMedDetails,
     openEditMed,
     openRestock,
-    restockName,
+    restockId,
     addUser,
     removeUser,
     setUserImage,

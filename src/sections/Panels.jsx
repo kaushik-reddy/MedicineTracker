@@ -142,7 +142,7 @@ export function InventoryCard({ className = '' }) {
                         <div className="text-[8px] font-semibold uppercase tracking-wide text-ink-400">days left</div>
                       </div>
                       <button
-                        onClick={() => openRestock(it.name)}
+                        onClick={() => openRestock(it.id)}
                         title="Restock"
                         className={
                           'grid h-8 w-8 shrink-0 place-items-center rounded-full transition-colors ' +
@@ -171,7 +171,7 @@ export function QuickActionsCard({ className = '' }) {
   const handle = (action) => {
     if (action === 'order-refill') {
       const lowest = [...inventory].sort((a, b) => a.days - b.days)[0]
-      if (lowest) openRestock(lowest.name)
+      if (lowest) openRestock(lowest.id)
       else showToast('Everything is well stocked', 'brand')
     } else {
       openModal(action)

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { CheckCircle, Bell, TrendingUp, SkipForward, RefreshCw } from '../icons.jsx'
+import { CheckCircle, Bell, TrendingUp, SkipForward, RefreshCw, Heart, MoodFace } from '../icons.jsx'
 import { Card, Illustration, UserChip } from '../ui.jsx'
 import { useApp } from '../store.jsx'
 import { user } from '../data.js'
@@ -16,12 +16,14 @@ export function HeroCard({ className = '' }) {
           <h1 className="text-xl font-extrabold leading-tight text-ink-900 sm:text-2xl">
             Good morning,
             <br />
-            {firstName}! <span>👋</span>
+            {firstName}!
           </h1>
           <p className="mt-1.5 text-[13px] text-ink-500">Stay consistent, stay healthy.</p>
 
           <div className="mt-4 inline-flex items-center gap-2.5 rounded-2xl bg-brand-50/80 px-3 py-2">
-            <span className="grid h-8 w-8 place-items-center rounded-xl bg-white text-base">🌱</span>
+            <span className="grid h-8 w-8 place-items-center rounded-xl bg-white">
+              <Heart className="h-4 w-4 text-brand-500" />
+            </span>
             <div className="leading-tight">
               <div className="text-[11px] font-medium text-ink-500">{hasData ? "You're doing great!" : 'Welcome to MediTrack'}</div>
               <div className="text-[12px] font-bold text-brand-600">
@@ -33,7 +35,9 @@ export function HeroCard({ className = '' }) {
 
           {latestSymptom && (
             <div className="mt-2 inline-flex items-center gap-2.5 rounded-2xl bg-violet-50/80 px-3 py-2">
-              <span className="grid h-8 w-8 place-items-center rounded-xl bg-white text-base">{latestSymptom.mood || '📝'}</span>
+              <span className="grid h-8 w-8 place-items-center rounded-xl bg-white text-accent-500">
+                <MoodFace mood={latestSymptom.mood} className="h-6 w-6" />
+              </span>
               <div className="leading-tight">
                 <div className="text-[11px] font-medium text-ink-500">Recent mood &amp; symptom</div>
                 <div className="max-w-[190px] truncate text-[12px] font-bold text-accent-600">
@@ -81,7 +85,7 @@ export function NextDoseCard({ className = '' }) {
               {allDone ? 'All doses done!' : 'No doses scheduled'}
             </div>
             <div className="mt-1 text-[12px] text-ink-500">
-              {allDone ? "You're all caught up for today. 🎉" : 'Add a medication to see your next dose here.'}
+              {allDone ? "You're all caught up for today." : 'Add a medication to see your next dose here.'}
             </div>
           </>
         )}
