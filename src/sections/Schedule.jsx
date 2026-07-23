@@ -2,6 +2,7 @@ import { useState, useRef, useLayoutEffect } from 'react'
 import { ChevronRight, Clock, CheckCircle, TrendingUp, Check, Close } from '../icons.jsx'
 import { Card, SectionTitle, Dropdown, toneSoft, MedGlyph, userTone, UserAvatar } from '../ui.jsx'
 import { useApp } from '../store.jsx'
+import { medActiveOn, istCalendarDate } from '../time.js'
 
 const glanceIcon = { clock: Clock, check: CheckCircle, trend: TrendingUp }
 
@@ -195,7 +196,8 @@ export function GlanceCard({ className = '' }) {
 
   const perUser = users
     .map((u) => {
-      const mine = medications.filter((m) => m.scheduledToday && m.user === u.id)
+      const today = istCalendarDate()
+      const mine = medications.filter((m) => m.scheduledToday && medActiveOn(m, today) && m.user === u.id)
       return { user: u, total: mine.length, taken: mine.filter((m) => m.taken).length }
     })
     .filter((x) => x.total > 0)

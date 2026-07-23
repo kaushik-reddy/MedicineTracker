@@ -32,11 +32,15 @@ export function HeroCard({ className = '' }) {
           </div>
 
           {latestSymptom && (
-            <div className="mt-2 flex items-center gap-1.5 text-[11px]">
-              <span className="text-[14px] leading-none">{latestSymptom.mood || '📝'}</span>
-              <span className="font-semibold text-ink-500">Recent:</span>
-              <span className="max-w-[150px] truncate font-bold text-accent-600">{latestSymptom.name}</span>
-              {latestSymptom.severity && <span className="text-ink-400">· {latestSymptom.severity}</span>}
+            <div className="mt-2 inline-flex items-center gap-2.5 rounded-2xl bg-violet-50/80 px-3 py-2">
+              <span className="grid h-8 w-8 place-items-center rounded-xl bg-white text-base">{latestSymptom.mood || '📝'}</span>
+              <div className="leading-tight">
+                <div className="text-[11px] font-medium text-ink-500">Recent mood &amp; symptom</div>
+                <div className="max-w-[190px] truncate text-[12px] font-bold text-accent-600">
+                  {latestSymptom.name}
+                  {latestSymptom.severity ? ` · ${latestSymptom.severity}` : ''}
+                </div>
+              </div>
             </div>
           )}
         </div>

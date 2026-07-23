@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react'
 import { Plus, CheckCircle, Clock, Sun, Moon, Flame, Close, Pill } from '../icons.jsx'
 import { Card, SectionTitle, Dropdown, toneBar, MedGlyph, UserAvatar, userTone, EmptyState, LoadingState } from '../ui.jsx'
 import { useApp } from '../store.jsx'
+import { medActiveOn, istCalendarDate } from '../time.js'
 
 const periodMeta = {
   am: { Icon: Sun, color: 'text-amber-500' },
@@ -128,7 +129,8 @@ export function AdherenceCard({ className = '' }) {
 
   const perUser = users
     .map((u) => {
-      const mine = medications.filter((m) => m.scheduledToday && m.user === u.id)
+      const today = istCalendarDate()
+      const mine = medications.filter((m) => m.scheduledToday && medActiveOn(m, today) && m.user === u.id)
       const pct = mine.length ? Math.round((mine.filter((m) => m.taken).length / mine.length) * 100) : 0
       return { user: u, pct, total: mine.length }
     })

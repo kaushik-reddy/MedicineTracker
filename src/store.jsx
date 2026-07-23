@@ -36,6 +36,9 @@ function hourLabel(t) {
   return m ? `${Number(m[1])} ${m[2].toUpperCase()}` : ''
 }
 
+// A stable per-day key (IST) used to detect midnight rollover.
+const dayKeyOf = (d) => `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`
+
 export function AppProvider({ children }) {
   const [medications, setMedications] = useState(medsSeed)
   const [inventory, setInventory] = useState(invSeed)
@@ -96,6 +99,44 @@ export function AppProvider({ children }) {
       setDataLoading(false)
     })
   }, [uid])
+
+  // Reset today's taken/skipped flags at the IST midnight rollover so the schedule
+  // and next dose reflect the new day. A per-account localStorage key remembers the
+  // last active day, so reloading mid-day does NOT wipe today's progress.
+  useEffect(() => {
+    if (!medications.length) return
+    const storeKey = 'meditrack:lastDay:' + (uid || 'local')
+    const rollIfNeeded = () => {
+      const today = dayKeyOf(istCalendarDate())
+      let last = null
+      try {
+        last = localStorage.getItem(storeKey)
+      } catch {
+        /* ignore */
+      }
+      if (last && last !== today) {
+        setMedications((meds) => {
+          const changed = []
+          const next = meds.map((m) => {
+            if (!m.taken && !m.skipped) return m
+            const nm = { ...m, taken: false, skipped: false }
+            changed.push(nm)
+            return nm
+          })
+          changed.forEach((m) => db.updateMedication(m.id, { taken: false, skipped: false }))
+          return next
+        })
+      }
+      try {
+        localStorage.setItem(storeKey, today)
+      } catch {
+        /* ignore */
+      }
+    }
+    rollIfNeeded()
+    const t = setInterval(rollIfNeeded, 60000)
+    return () => clearInterval(t)
+  }, [uid, medications.length])
 
   // A "notice" is a transient event surfaced by the header bell (expand/collapse).
   const showToast = useCallback((message, tone = 'brand') => {
@@ -515,7 +556,7 @@ export function AppProvider({ children }) {
             const byName = !it.medicationId && it.name === updated.name && it.user === updated.user
             if (!linked && !byName) return it
             found = true
-            invUpdated = { ...it, medicationId: id, days, pct: 100, detail }
+            invUpdated = { ...it, medicationId: id, name: updated.name, user: updated.user, days, pct: 100, detail }
             return invUpdated
           })
           if (found) return next
@@ -597,9 +638,9 @@ export function AppProvider({ children }) {
 
   // Record how the user is feeling. Persists and shows up in Recent History.
   const logSymptom = useCallback(
-    ({ name, severity, mood }) => {
+    ({ name, severity, mood, user }) => {
       const clean = (name || '').trim() || 'Symptom'
-      const entry = { id: newId(), ts: Date.now(), name: clean, severity: severity || 'Mild', mood: mood || '' }
+      const entry = { id: newId(), ts: Date.now(), name: clean, severity: severity || 'Mild', mood: mood || '', user: user || null }
       setSymptoms((list) => [entry, ...list].slice(0, 200))
       db.insertSymptom(entry)
       const tone = severity === 'Severe' ? 'coral' : severity === 'Moderate' ? 'warn' : 'brand'

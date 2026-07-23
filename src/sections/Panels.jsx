@@ -98,7 +98,7 @@ export function InventoryCard({ className = '' }) {
               const u = usersById[it.user]
               return (
                 <div
-                  key={it.name}
+                  key={it.id || it.name}
                   className={
                     'rounded-2xl border p-3 transition-colors ' +
                     (low ? 'border-amber-200 bg-amber-50/40' : 'border-line bg-white')

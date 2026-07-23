@@ -18,7 +18,9 @@ export function HistoryCard({ className = '' }) {
       mood: s.mood,
       severity: s.severity,
       user: s.user,
-      date: s.ts ? new Date(s.ts).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : 'Today',
+      date: s.ts
+        ? new Date(s.ts).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+        : 'Today',
     }))
     return [...doses, ...syms].sort((a, b) => (b.ts || 0) - (a.ts || 0))
   }, [history, symptoms])

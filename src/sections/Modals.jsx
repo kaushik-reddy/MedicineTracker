@@ -64,16 +64,23 @@ const solidMap = {
   warn: 'bg-amber-500 hover:bg-amber-600',
   sky: 'bg-sky-500 hover:bg-sky-600',
 }
+// Soft gradient header wash per tone — gives the modals a fresh, premium look.
+const headMap = {
+  brand: 'from-brand-50 via-white to-white',
+  accent: 'from-violet-50 via-white to-white',
+  warn: 'from-amber-50 via-white to-white',
+  sky: 'from-sky-50 via-white to-white',
+}
 
 function Shell({ icon: Icon, tone = 'brand', title, subtitle, children }) {
   const { closeModal } = useApp()
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-ink-900/40 backdrop-blur-sm" onClick={closeModal} />
-      <div className="relative w-full max-w-md overflow-hidden rounded-3xl bg-white shadow-2xl">
-        <div className="flex items-start justify-between p-6 pb-4">
+      <div className="relative w-full max-w-md overflow-hidden rounded-3xl bg-white shadow-2xl ring-1 ring-black/5">
+        <div className={'flex items-start justify-between gap-3 bg-gradient-to-br p-6 pb-5 ' + (headMap[tone] || headMap.brand)}>
           <div className="flex items-center gap-3">
-            <span className={'grid h-11 w-11 place-items-center rounded-2xl ' + softMap[tone]}>
+            <span className={'grid h-11 w-11 shrink-0 place-items-center rounded-2xl shadow-sm ring-1 ring-black/5 ' + softMap[tone]}>
               <Icon className="h-6 w-6" />
             </span>
             <div>
@@ -83,12 +90,12 @@ function Shell({ icon: Icon, tone = 'brand', title, subtitle, children }) {
           </div>
           <button
             onClick={closeModal}
-            className="grid h-8 w-8 place-items-center rounded-full text-ink-400 hover:bg-page transition-colors"
+            className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-white/70 text-ink-400 hover:bg-white transition-colors"
           >
             <Close className="h-4 w-4" />
           </button>
         </div>
-        <div className="px-6 pb-6">{children}</div>
+        <div className="px-6 pb-6 pt-4">{children}</div>
       </div>
     </div>
   )
@@ -943,8 +950,8 @@ function MedDetails() {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-ink-900/40 backdrop-blur-sm" onClick={closeModal} />
-      <div className="relative flex max-h-[88vh] w-full max-w-md flex-col overflow-hidden rounded-3xl bg-white shadow-2xl">
-        <div className="flex items-start justify-between gap-3 p-6 pb-4">
+      <div className="relative flex max-h-[88vh] w-full max-w-md flex-col overflow-hidden rounded-3xl bg-white shadow-2xl ring-1 ring-black/5">
+        <div className="flex items-start justify-between gap-3 bg-gradient-to-br from-brand-50 via-white to-white p-6 pb-4">
           <div className="flex min-w-0 items-center gap-3">
             <ImageUploader med={med} onPick={(img) => setMedImage(med.id, img)} />
             <div className="min-w-0">
@@ -1103,10 +1110,11 @@ function Restock() {
 }
 
 function LogSymptom() {
-  const { logSymptom, closeModal } = useApp()
+  const { logSymptom, closeModal, users } = useApp()
   const [text, setText] = useState('')
   const [severity, setSeverity] = useState('Mild')
   const [mood, setMood] = useState('🙂')
+  const [member, setMember] = useState(users[0]?.id ?? '')
   const moods = ['😀', '🙂', '😐', '🙁', '😣']
   const sevCls = {
     Mild: 'border-brand-400 bg-brand-50 text-brand-600',
@@ -1116,6 +1124,26 @@ function LogSymptom() {
   return (
     <Shell icon={Note} tone="accent" title="Log a Symptom" subtitle="Record how you're feeling">
       <div className="space-y-3">
+        {users.length > 0 && (
+          <div>
+            <div className={label}>Member</div>
+            <div className="mt-1.5 flex flex-wrap gap-2">
+              {users.map((u) => (
+                <button
+                  key={u.id}
+                  onClick={() => setMember(u.id)}
+                  className={
+                    'flex items-center gap-1.5 rounded-full border py-1 pl-1 pr-2.5 transition-colors ' +
+                    (member === u.id ? 'border-accent-400 bg-violet-50' : 'border-line hover:bg-page')
+                  }
+                >
+                  <UserAvatar user={u} className="h-5 w-5 text-[9px]" />
+                  <span className="text-[11px] font-bold text-ink-700">{u.name}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
         <div>
           <div className={label}>Symptom</div>
           <input
@@ -1164,7 +1192,7 @@ function LogSymptom() {
         tone="accent"
         confirmLabel="Log symptom"
         onConfirm={() => {
-          logSymptom({ name: text.trim() || 'Symptom', severity, mood })
+          logSymptom({ name: text.trim() || 'Symptom', severity, mood, user: member || null })
           closeModal()
         }}
       />
