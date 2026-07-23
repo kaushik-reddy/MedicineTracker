@@ -213,3 +213,11 @@ drop policy if exists "symptoms: owner can read"  on public.symptoms;
 drop policy if exists "symptoms: owner can write" on public.symptoms;
 create policy "symptoms: owner can read"  on public.symptoms for select using (auth.uid() = owner_id);
 create policy "symptoms: owner can write" on public.symptoms for all using (auth.uid() = owner_id) with check (auth.uid() = owner_id);
+
+-- ---------------------------------------------------------------------------
+-- Reload the PostgREST schema cache.
+-- Columns added above via `alter table ... add column` are NOT visible to the
+-- API (upserts silently drop them, e.g. a medication's `unit`) until PostgREST
+-- reloads its cached schema. Running this makes new columns take effect at once.
+-- ---------------------------------------------------------------------------
+notify pgrst, 'reload schema';

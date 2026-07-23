@@ -3,6 +3,7 @@ import { Logo, Bell, Clock, CheckCircle } from '../icons.jsx'
 import { MedGlyph, UserAvatar, userTone } from '../ui.jsx'
 import { user } from '../data.js'
 import { useApp } from '../store.jsx'
+import { useIsMobile } from '../useFitScale.js'
 
 const toneDot = {
   brand: 'bg-brand-500',
@@ -16,6 +17,7 @@ const toneDot = {
 export default function Header() {
   const { schedule, notice, session, logout, authEnabled, usersById } = useApp()
   const upcoming = schedule.filter((m) => !m.taken && !m.skipped)
+  const isMobile = useIsMobile()
 
   const email = session?.user?.email || ''
   const accountName = email ? email.split('@')[0] : user.name
@@ -67,20 +69,23 @@ export default function Header() {
             onClick={() => setOpen((o) => !o)}
             className="flex h-9 items-center overflow-hidden rounded-full border border-line bg-white text-ink-500 shadow-sm transition-colors hover:bg-page"
           >
-            <span
-              className="flex items-center overflow-hidden"
-              style={{
-                maxWidth: expanded ? mw : 0,
-                opacity: expanded ? 1 : 0,
-                transition:
-                  'max-width 0.7s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.5s ease-in-out',
-              }}
-            >
-              <span ref={msgRef} className="flex items-center gap-1.5 whitespace-nowrap pl-3 pr-1.5">
-                <span className={'h-1.5 w-1.5 shrink-0 rounded-full ' + (toneDot[tone] || toneDot.brand)} />
-                <span className="max-w-[42vw] truncate text-[12px] font-semibold text-ink-700 sm:max-w-none">{msg}</span>
+            {/* Desktop only: message expands sideways from the bell. */}
+            {!isMobile && (
+              <span
+                className="flex items-center overflow-hidden"
+                style={{
+                  maxWidth: expanded ? mw : 0,
+                  opacity: expanded ? 1 : 0,
+                  transition:
+                    'max-width 0.7s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.5s ease-in-out',
+                }}
+              >
+                <span ref={msgRef} className="flex items-center gap-1.5 whitespace-nowrap pl-3 pr-1.5">
+                  <span className={'h-1.5 w-1.5 shrink-0 rounded-full ' + (toneDot[tone] || toneDot.brand)} />
+                  <span className="max-w-[42vw] truncate text-[12px] font-semibold text-ink-700 sm:max-w-none">{msg}</span>
+                </span>
               </span>
-            </span>
+            )}
 
             <span className="relative grid h-9 w-9 shrink-0 place-items-center">
               <Bell className="h-4.5 w-4.5" />
@@ -91,6 +96,30 @@ export default function Header() {
               )}
             </span>
           </button>
+
+          {/* Mobile only: notice forms as a droplet under the bell, drops down, then
+              expands sideways to reveal the message. Never renders on desktop. */}
+          {isMobile && (
+            <div className="pointer-events-none absolute right-2 top-full z-30 flex justify-end pt-1.5">
+              <div
+                className="flex h-8 items-center overflow-hidden rounded-2xl border border-line bg-white shadow-lg shadow-ink-900/10"
+                style={{
+                  maxWidth: expanded ? mw + 10 : 20,
+                  opacity: expanded ? 1 : 0,
+                  transform: expanded ? 'translateY(0) scaleY(1)' : 'translateY(-14px) scaleY(0.4)',
+                  transformOrigin: 'top right',
+                  transition: expanded
+                    ? 'opacity 0.18s ease-out, transform 0.34s cubic-bezier(0.34, 1.56, 0.64, 1), max-width 0.46s cubic-bezier(0.22, 1, 0.36, 1) 0.16s'
+                    : 'opacity 0.22s ease-in 0.08s, transform 0.26s ease-in, max-width 0.28s ease-in',
+                }}
+              >
+                <span ref={msgRef} className="flex items-center gap-1.5 whitespace-nowrap px-3">
+                  <span className={'h-1.5 w-1.5 shrink-0 rounded-full ' + (toneDot[tone] || toneDot.brand)} />
+                  <span className="max-w-[62vw] truncate text-[12px] font-semibold text-ink-700">{msg}</span>
+                </span>
+              </div>
+            </div>
+          )}
 
           {open && (
             <>
