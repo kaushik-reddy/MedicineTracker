@@ -14,7 +14,7 @@ const toneDot = {
 
 // Slim brand/identity header — no tab navigation (single-page app).
 export default function Header() {
-  const { schedule, markTaken, notice, session, logout, authEnabled, usersById } = useApp()
+  const { schedule, notice, session, logout, authEnabled, usersById } = useApp()
   const upcoming = schedule.filter((m) => !m.taken && !m.skipped)
 
   const email = session?.user?.email || ''
@@ -127,36 +127,28 @@ export default function Header() {
                       return (
                         <div
                           key={m.id}
-                          className="flex items-center justify-between gap-2 rounded-xl border border-line/70 bg-white px-2.5 py-2.5 transition-colors hover:border-brand-200 hover:bg-page/40"
+                          className="flex items-center gap-2.5 rounded-xl border border-line/70 bg-white px-2.5 py-2.5"
                         >
-                          <div className="flex min-w-0 items-center gap-2.5">
-                            <span className="grid h-9 w-9 shrink-0 place-items-center overflow-hidden rounded-lg border border-line bg-white">
-                              <MedGlyph med={m} className="h-6 w-6" />
-                            </span>
-                            <div className="min-w-0 leading-tight">
-                              <div className="truncate text-[12px] font-bold text-ink-900">{m.name}</div>
-                              <div className="truncate text-[10px] text-ink-400">
-                                {m.dosage} • {m.unit}
-                              </div>
-                              <div className="mt-0.5 flex items-center gap-2">
-                                <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-ink-500">
-                                  <Clock className="h-3 w-3" /> {m.time}
+                          <span className="grid h-9 w-9 shrink-0 place-items-center overflow-hidden rounded-lg border border-line bg-white">
+                            <MedGlyph med={m} className="h-6 w-6" />
+                          </span>
+                          <div className="min-w-0 flex-1 leading-tight">
+                            <div className="truncate text-[12px] font-bold text-ink-900">{m.name}</div>
+                            <div className="truncate text-[10px] text-ink-400">
+                              {m.dosage} • {m.unit}
+                            </div>
+                            <div className="mt-0.5 flex items-center gap-2">
+                              <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-ink-500">
+                                <Clock className="h-3 w-3" /> {m.time}
+                              </span>
+                              {owner && (
+                                <span className={'inline-flex items-center gap-1 text-[10px] font-bold ' + uTone}>
+                                  <UserAvatar user={owner} className="h-3.5 w-3.5 text-[7px]" />
+                                  {owner.name}
                                 </span>
-                                {owner && (
-                                  <span className={'inline-flex items-center gap-1 text-[10px] font-bold ' + uTone}>
-                                    <UserAvatar user={owner} className="h-3.5 w-3.5 text-[7px]" />
-                                    {owner.name}
-                                  </span>
-                                )}
-                              </div>
+                              )}
                             </div>
                           </div>
-                          <button
-                            onClick={() => markTaken(m.id)}
-                            className="shrink-0 rounded-full bg-brand-500 px-3 py-1.5 text-[11px] font-bold text-white hover:bg-brand-600 transition-colors"
-                          >
-                            Take
-                          </button>
                         </div>
                       )
                     })}

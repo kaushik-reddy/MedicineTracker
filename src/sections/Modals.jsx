@@ -688,7 +688,7 @@ function ExportReport() {
 }
 
 function FullSchedule() {
-  const { schedule, medications, history, nextDose, markTaken, resetDose, closeModal, usersById } = useApp()
+  const { schedule, medications, history, nextDose, closeModal, usersById } = useApp()
   const now = useNow(1000)
   const today = istCalendarDate(now)
   const [selected, setSelected] = useState(today)
@@ -875,35 +875,21 @@ function FullSchedule() {
                         )}
                       </div>
                     </div>
-                    {/* Status / action */}
-                    {isToday ? (
-                      <button
-                        onClick={() => (it.taken || it.skipped ? resetDose(it.id) : markTaken(it.id))}
-                        className={
-                          'shrink-0 rounded-full px-3 py-1.5 text-[11px] font-bold transition-colors ' +
-                          (it.taken
-                            ? 'bg-brand-50 text-brand-600 hover:bg-brand-100'
-                            : it.skipped
-                              ? 'bg-amber-50 text-warn-500 hover:bg-amber-100'
-                              : 'bg-brand-500 text-white hover:bg-brand-600')
-                        }
-                      >
-                        {it.taken ? 'Taken' : it.skipped ? 'Skipped' : 'Take'}
-                      </button>
-                    ) : (
-                      <span
-                        className={
-                          'shrink-0 rounded-full px-2.5 py-1 text-[10px] font-bold ' +
-                          (it.taken
-                            ? 'bg-brand-50 text-brand-600'
-                            : it.skipped
-                              ? 'bg-amber-50 text-warn-500'
-                              : 'bg-page text-ink-400')
-                        }
-                      >
-                        {it.taken ? 'Taken' : it.skipped ? 'Skipped' : 'Missed'}
-                      </span>
-                    )}
+                    {/* Status (view only — take from the Next Dose card) */}
+                    <span
+                      className={
+                        'shrink-0 rounded-full px-2.5 py-1 text-[10px] font-bold ' +
+                        (it.taken
+                          ? 'bg-brand-50 text-brand-600'
+                          : it.skipped
+                            ? 'bg-amber-50 text-warn-500'
+                            : isPast
+                              ? 'bg-rose-50 text-coral-500'
+                              : 'bg-violet-50 text-accent-600')
+                      }
+                    >
+                      {it.taken ? 'Taken' : it.skipped ? 'Skipped' : isPast ? 'Missed' : 'Upcoming'}
+                    </span>
                   </div>
                 )
               })}
@@ -911,7 +897,7 @@ function FullSchedule() {
           )}
           {!isToday && items.length > 0 && (
             <p className="mt-3 text-center text-[11px] font-medium text-ink-400">
-              Only today's doses can be updated · use the arrows or calendar to browse
+              Browse days with the arrows or calendar · mark doses from Your Next Dose
             </p>
           )}
         </div>
