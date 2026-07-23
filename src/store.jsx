@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useCallback, useMemo, useRef, useEffect } from 'react'
 import { medications as medsSeed, inventory as invSeed, history as histSeed, users as usersSeed } from './data.js'
-import { timeAfterNow, istTimeLabel, istCalendarDate, addDays, medActiveOn } from './time.js'
+import { timeAfterNow, istTimeLabel, istCalendarDate, addDays, medActiveOn, sameDay } from './time.js'
 import {
   db,
   loadAll,
@@ -36,8 +36,28 @@ function hourLabel(t) {
   return m ? `${Number(m[1])} ${m[2].toUpperCase()}` : ''
 }
 
-// A stable per-day key (IST) used to detect midnight rollover.
-const dayKeyOf = (d) => `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`
+// Was there a dose action (taken/skipped) logged for this medication *today* (IST)?
+function actedToday(med, history) {
+  const today = istCalendarDate()
+  return history.some(
+    (h) => h.name === med.name && h.user === med.user && h.ts && sameDay(istCalendarDate(h.ts), today),
+  )
+}
+
+// Clear taken/skipped flags that belong to a previous day. A medication keeps its
+// "taken today" state only if there is a matching dose log dated today; otherwise it
+// rolls over to upcoming. This self-corrects across IST midnight without any baseline.
+function reconcileMedsForToday(meds, history) {
+  const changed = []
+  const next = meds.map((m) => {
+    if (!m.taken && !m.skipped) return m
+    if (actedToday(m, history)) return m
+    const nm = { ...m, taken: false, skipped: false }
+    changed.push(nm)
+    return nm
+  })
+  return { next, changed }
+}
 
 export function AppProvider({ children }) {
   const [medications, setMedications] = useState(medsSeed)
@@ -90,53 +110,34 @@ export function AppProvider({ children }) {
     setDataLoading(true)
     loadAll().then((data) => {
       if (data) {
+        // Roll over any stale taken/skipped flags from previous days on load.
+        const { next, changed } = reconcileMedsForToday(data.medications, data.history)
         setUsers(data.users)
-        setMedications(data.medications)
+        setMedications(next)
         setInventory(data.inventory)
         setHistory(data.history)
         setSymptoms(data.symptoms ?? [])
+        changed.forEach((m) => db.updateMedication(m.id, { taken: false, skipped: false }))
       }
       setDataLoading(false)
     })
   }, [uid])
 
-  // Reset today's taken/skipped flags at the IST midnight rollover so the schedule
-  // and next dose reflect the new day. A per-account localStorage key remembers the
-  // last active day, so reloading mid-day does NOT wipe today's progress.
+  // Keep today's schedule fresh as IST midnight passes while the app stays open.
+  const historyRef = useRef(history)
+  historyRef.current = history
   useEffect(() => {
-    if (!medications.length) return
-    const storeKey = 'meditrack:lastDay:' + (uid || 'local')
-    const rollIfNeeded = () => {
-      const today = dayKeyOf(istCalendarDate())
-      let last = null
-      try {
-        last = localStorage.getItem(storeKey)
-      } catch {
-        /* ignore */
-      }
-      if (last && last !== today) {
-        setMedications((meds) => {
-          const changed = []
-          const next = meds.map((m) => {
-            if (!m.taken && !m.skipped) return m
-            const nm = { ...m, taken: false, skipped: false }
-            changed.push(nm)
-            return nm
-          })
-          changed.forEach((m) => db.updateMedication(m.id, { taken: false, skipped: false }))
-          return next
-        })
-      }
-      try {
-        localStorage.setItem(storeKey, today)
-      } catch {
-        /* ignore */
-      }
+    const tick = () => {
+      setMedications((meds) => {
+        const { next, changed } = reconcileMedsForToday(meds, historyRef.current)
+        if (!changed.length) return meds
+        changed.forEach((m) => db.updateMedication(m.id, { taken: false, skipped: false }))
+        return next
+      })
     }
-    rollIfNeeded()
-    const t = setInterval(rollIfNeeded, 60000)
+    const t = setInterval(tick, 60000)
     return () => clearInterval(t)
-  }, [uid, medications.length])
+  }, [])
 
   // A "notice" is a transient event surfaced by the header bell (expand/collapse).
   const showToast = useCallback((message, tone = 'brand') => {

@@ -2,12 +2,15 @@ import { useState, useRef, useLayoutEffect } from 'react'
 import { ChevronRight, Clock, CheckCircle, TrendingUp, Check, Close } from '../icons.jsx'
 import { Card, SectionTitle, Dropdown, toneSoft, MedGlyph, userTone, UserAvatar } from '../ui.jsx'
 import { useApp } from '../store.jsx'
-import { medActiveOn, istCalendarDate } from '../time.js'
+import { medActiveOn, istCalendarDate, addDays } from '../time.js'
 
 const glanceIcon = { clock: Clock, check: CheckCircle, trend: TrendingUp }
 
 const CARD = 150
 const GAP = 16
+
+// Full date like "23 Jul 2026" for the timeline day markers.
+const fmtDate = (d) => d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
 
 function buildSlots(schedule, scheduleTomorrow) {
   const slots = []
@@ -41,6 +44,8 @@ function Node({ state }) {
 export function ScheduleCard({ className = '' }) {
   const { schedule, scheduleTomorrow, nextDose, openModal, usersById } = useApp()
   const slots = buildSlots(schedule, scheduleTomorrow)
+  const today = istCalendarDate()
+  const dateForDay = (day) => (day === 'Tomorrow' ? addDays(today, 1) : today)
 
   let activeIndex = schedule.findIndex((m) => !m.taken && !m.skipped)
   if (activeIndex === -1) activeIndex = schedule.length // "all done today" card
@@ -68,7 +73,10 @@ export function ScheduleCard({ className = '' }) {
 
   return (
     <Card className={'flex flex-col p-4 ' + className}>
-      <SectionTitle className="!text-[15px]">Today's Schedule</SectionTitle>
+      <div className="flex items-baseline justify-between gap-2">
+        <SectionTitle className="!text-[15px]">Today's Schedule</SectionTitle>
+        <span className="shrink-0 text-[10px] font-bold text-ink-400">{fmtDate(today)}</span>
+      </div>
 
       <div ref={viewportRef} className="relative mt-3 flex-1 overflow-hidden">
         <div className="pointer-events-none absolute inset-y-0 left-0 z-20 w-8 bg-gradient-to-r from-white to-transparent" />
@@ -100,7 +108,11 @@ export function ScheduleCard({ className = '' }) {
             return (
               <div key={slot.key} style={{ width: CARD }} className="relative z-10 flex shrink-0 flex-col items-center">
                 <div className="flex h-4 items-end text-[10px] font-semibold text-ink-400">
-                  {slot.type === 'dose' ? slot.med.label : ''}
+                  {slot.type === 'dose' ? (
+                    slot.med.label
+                  ) : (
+                    <span className="text-[9px] font-bold text-brand-600">{fmtDate(dateForDay(slot.day))}</span>
+                  )}
                 </div>
                 <div className="flex h-6 items-center justify-center">
                   <Node state={state} />
@@ -169,6 +181,7 @@ export function ScheduleCard({ className = '' }) {
                     <span className="text-2xl">🎉</span>
                     <div className="mt-1 text-[12px] font-extrabold leading-tight text-ink-900">All doses done</div>
                     <div className="text-[10px] font-semibold text-brand-600">for {slot.day}</div>
+                    <div className="mt-0.5 text-[9px] font-bold text-ink-400">{fmtDate(dateForDay(slot.day))}</div>
                   </div>
                 )}
               </div>
