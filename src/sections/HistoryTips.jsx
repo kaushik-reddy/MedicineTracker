@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
 import { ChevronRight, Droplet, Clock, MoodFace, moodKey, MOOD_COLOR } from '../icons.jsx'
-import { Card, SectionTitle, Illustration, toneBar, userTone, EmptyState, LoadingState } from '../ui.jsx'
+import { Card, SectionTitle, Illustration, userTone, EmptyState, LoadingState, PillGlyph, UserAvatar } from '../ui.jsx'
 import { tips } from '../data.js'
 import { useApp } from '../store.jsx'
 
@@ -49,41 +49,64 @@ export function HistoryCard({ className = '' }) {
         ) : feed.length === 0 ? (
           <EmptyState icon={Clock} title="No history yet" hint="Doses you take or skip and symptoms you log will show up here." />
         ) : (
-          <div className="relative pl-4">
-            {/* vertical timeline rail */}
-            <div className="absolute bottom-2 left-[5px] top-2 w-px bg-line" />
+          <div className="space-y-1.5">
             {feed.map((h) => {
               const u = usersById[h.user]
               const uTone = (userTone[u?.tone] || userTone.brand).text
               if (h.kind === 'symptom') {
                 return (
-                  <div key={h.id} className="relative flex items-center gap-2 py-[6px]">
-                    <span className="absolute -left-4 top-1/2 h-2.5 w-2.5 -translate-y-1/2 rounded-full bg-accent-500 ring-2 ring-white" />
-                    <MoodFace mood={h.mood} className={'h-4 w-4 shrink-0 ' + (MOOD_COLOR[moodKey(h.mood)] || 'text-accent-500')} />
-                    <span className="max-w-[40%] shrink-0 truncate text-[12px] font-bold text-ink-900">{h.name}</span>
-                    {u && <span className={'shrink-0 truncate text-[10px] font-bold ' + uTone}>· {u.name}</span>}
-                    <span className="min-w-0 flex-1 truncate text-right text-[10px] font-semibold text-ink-400">{h.date}</span>
-                    <span className={'shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold ' + (sevBadge[h.severity] || sevBadge.Mild)}>
-                      {h.severity || 'Symptom'}
+                  <div
+                    key={h.id}
+                    className="flex items-center gap-2.5 rounded-xl border border-line/60 bg-white py-2 pl-2 pr-2.5"
+                  >
+                    <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-violet-50">
+                      <MoodFace mood={h.mood} className={'h-5 w-5 ' + (MOOD_COLOR[moodKey(h.mood)] || 'text-accent-500')} />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5">
+                        <span className="truncate text-[12px] font-bold text-ink-900">{h.name}</span>
+                        {u && (
+                          <span className={'inline-flex shrink-0 items-center gap-1 text-[10px] font-bold ' + uTone}>
+                            <UserAvatar user={u} className="h-3.5 w-3.5 text-[7px]" />
+                            {u.name}
+                          </span>
+                        )}
+                      </div>
+                      <div className="truncate text-[10px] text-ink-400">{h.date}</div>
+                    </div>
+                    <span
+                      className={
+                        'shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold ' +
+                        (sevBadge[h.severity] || 'bg-violet-50 text-accent-600')
+                      }
+                    >
+                      {h.severity || 'Mood'}
                     </span>
                   </div>
                 )
               }
               const taken = h.status === 'Taken'
               return (
-                <div key={h.id} className="relative flex items-center gap-2 py-[6px]">
-                  <span
-                    className={
-                      'absolute -left-4 top-1/2 h-2.5 w-2.5 -translate-y-1/2 rounded-full ring-2 ring-white ' +
-                      toneBar[h.tone]
-                    }
-                  />
-                  <span className="max-w-[38%] shrink-0 truncate text-[12px] font-bold text-ink-900">{h.name}</span>
-                  <span className="shrink-0 text-[10px] font-medium text-ink-400">{h.dose}</span>
-                  {u && <span className={'shrink-0 truncate text-[10px] font-bold ' + uTone}>· {u.name}</span>}
-                  <span className="min-w-0 flex-1 truncate text-right text-[10px] font-semibold text-ink-400">
-                    {h.date}
+                <div
+                  key={h.id}
+                  className="flex items-center gap-2.5 rounded-xl border border-line/60 bg-white py-2 pl-2 pr-2.5"
+                >
+                  <span className="grid h-8 w-8 shrink-0 place-items-center overflow-hidden rounded-lg border border-line bg-white">
+                    <PillGlyph tone={h.tone} className="h-5 w-5" />
                   </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1.5">
+                      <span className="truncate text-[12px] font-bold text-ink-900">{h.name}</span>
+                      {h.dose && <span className="shrink-0 text-[10px] font-medium text-ink-400">{h.dose}</span>}
+                      {u && (
+                        <span className={'inline-flex shrink-0 items-center gap-1 text-[10px] font-bold ' + uTone}>
+                          <UserAvatar user={u} className="h-3.5 w-3.5 text-[7px]" />
+                          {u.name}
+                        </span>
+                      )}
+                    </div>
+                    <div className="truncate text-[10px] text-ink-400">{h.date}</div>
+                  </div>
                   <span
                     className={
                       'shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold ' +

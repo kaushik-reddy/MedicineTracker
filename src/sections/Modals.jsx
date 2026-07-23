@@ -30,8 +30,8 @@ import {
   MOOD_COLOR,
 } from '../icons.jsx'
 import { PillGlyph, MedGlyph, UserAvatar } from '../ui.jsx'
-import { ScheduleTimeline, Calendar } from './ScheduleView.jsx'
-import { useNow, istCalendarDate, sameDay, addDays, formatLongDate, medActiveOn, istTimeLabel } from '../time.js'
+import { Calendar } from './ScheduleView.jsx'
+import { useNow, istCalendarDate, sameDay, addDays, formatLongDate, medActiveOn, istTimeLabel, emptyByLabel } from '../time.js'
 import { DEFAULT_MED_INFO } from '../data.js'
 
 const field =
@@ -688,7 +688,7 @@ function ExportReport() {
 }
 
 function FullSchedule() {
-  const { schedule, medications, history, nextDose, markTaken, resetDose, closeModal } = useApp()
+  const { schedule, medications, history, nextDose, markTaken, resetDose, closeModal, usersById } = useApp()
   const now = useNow(1000)
   const today = istCalendarDate(now)
   const [selected, setSelected] = useState(today)
@@ -825,10 +825,10 @@ function FullSchedule() {
           </div>
         </div>
 
-        {/* Timeline for the selected date (animated on change) */}
-        <div className="p-5 pt-4">
+        {/* Day agenda for the selected date (animated on change) */}
+        <div className="max-h-[46vh] overflow-y-auto no-scrollbar p-5 pt-4">
           {items.length === 0 ? (
-            <div className="flex flex-col items-center justify-center gap-2 py-8 text-center">
+            <div className="flex flex-col items-center justify-center gap-2 py-10 text-center">
               <span className="grid h-11 w-11 place-items-center rounded-2xl bg-page text-ink-400">
                 <CalendarDays className="h-6 w-6" />
               </span>
@@ -838,17 +838,75 @@ function FullSchedule() {
           ) : (
             <div
               key={selected.toDateString()}
-              className="animate-slide"
+              className="animate-slide space-y-2"
               style={{ '--slide': `${dir >= 0 ? 18 : -18}px` }}
             >
-              <ScheduleTimeline
-                items={items}
-                activeId={activeId}
-                size="lg"
-                onItemClick={
-                  isToday ? (it) => (it.taken || it.skipped ? resetDose(it.id) : markTaken(it.id)) : undefined
-                }
-              />
+              {items.map((it) => {
+                const active = it.id === activeId
+                const owner = usersById[it.user]
+                const state = it.taken ? 'taken' : it.skipped ? 'skipped' : active ? 'active' : 'upcoming'
+                const cardCls =
+                  state === 'taken'
+                    ? 'border-brand-200 bg-brand-50/30'
+                    : state === 'skipped'
+                      ? 'border-amber-200 bg-amber-50/30'
+                      : state === 'active'
+                        ? 'border-brand-400 bg-brand-50/40'
+                        : 'border-line bg-white'
+                return (
+                  <div key={it.id} className={'flex items-center gap-3 rounded-2xl border p-3 transition-colors ' + cardCls}>
+                    {/* Time */}
+                    <div className="w-14 shrink-0 text-center leading-tight">
+                      <div className="text-[13px] font-extrabold text-ink-900">{(it.time || '').replace(/\s?[AP]M/i, '')}</div>
+                      <div className="text-[9px] font-bold uppercase text-ink-400">{(String(it.time).match(/[AP]M/i) || [''])[0]}</div>
+                    </div>
+                    <span className="grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-xl border border-line bg-white">
+                      <MedGlyph med={it} className="h-7 w-7" />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-[13px] font-bold text-ink-900">{it.name}</div>
+                      <div className="flex items-center gap-1.5 truncate text-[10px] text-ink-400">
+                        <span className="truncate">{it.dosage} • {it.unit}</span>
+                        {owner && (
+                          <span className="inline-flex shrink-0 items-center gap-1 font-bold text-ink-500">
+                            <UserAvatar user={owner} className="h-3.5 w-3.5 text-[7px]" />
+                            {owner.name}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    {/* Status / action */}
+                    {isToday ? (
+                      <button
+                        onClick={() => (it.taken || it.skipped ? resetDose(it.id) : markTaken(it.id))}
+                        className={
+                          'shrink-0 rounded-full px-3 py-1.5 text-[11px] font-bold transition-colors ' +
+                          (it.taken
+                            ? 'bg-brand-50 text-brand-600 hover:bg-brand-100'
+                            : it.skipped
+                              ? 'bg-amber-50 text-warn-500 hover:bg-amber-100'
+                              : 'bg-brand-500 text-white hover:bg-brand-600')
+                        }
+                      >
+                        {it.taken ? 'Taken' : it.skipped ? 'Skipped' : 'Take'}
+                      </button>
+                    ) : (
+                      <span
+                        className={
+                          'shrink-0 rounded-full px-2.5 py-1 text-[10px] font-bold ' +
+                          (it.taken
+                            ? 'bg-brand-50 text-brand-600'
+                            : it.skipped
+                              ? 'bg-amber-50 text-warn-500'
+                              : 'bg-page text-ink-400')
+                        }
+                      >
+                        {it.taken ? 'Taken' : it.skipped ? 'Skipped' : 'Missed'}
+                      </span>
+                    )}
+                  </div>
+                )
+              })}
             </div>
           )}
           {!isToday && items.length > 0 && (
@@ -1120,19 +1178,20 @@ function MedDetails() {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-ink-900/40 backdrop-blur-sm" onClick={closeModal} />
-      <div className="relative flex max-h-[88vh] w-full max-w-md flex-col overflow-hidden rounded-3xl bg-white shadow-2xl ring-1 ring-black/5">
-        <div className="flex items-start justify-between gap-3 bg-gradient-to-br from-brand-50 via-white to-white p-6 pb-4">
+      <div className="relative flex max-h-[88vh] w-full max-w-3xl flex-col overflow-hidden rounded-3xl bg-white shadow-2xl ring-1 ring-black/5">
+        {/* Header */}
+        <div className="flex items-start justify-between gap-3 bg-gradient-to-br from-brand-50 via-white to-white p-5">
           <div className="flex min-w-0 items-center gap-3">
             <ImageUploader med={med} onPick={(img) => setMedImage(med.id, img)} />
             <div className="min-w-0">
-              <h2 className="break-words text-[18px] font-extrabold leading-tight text-ink-900">{med.name}</h2>
+              <h2 className="break-words text-[19px] font-extrabold leading-tight text-ink-900">{med.name}</h2>
               <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
-                <span className="max-w-[160px] truncate rounded-full bg-page px-2 py-0.5 text-[10px] font-bold text-ink-500">{info.category}</span>
+                <span className="max-w-[180px] truncate rounded-full bg-page px-2 py-0.5 text-[10px] font-bold text-ink-500">{info.category}</span>
                 <span className={'text-[12px] font-bold ' + statusColor}>{statusLabel}</span>
                 {owner && (
                   <span className="inline-flex items-center gap-1">
                     <UserAvatar user={owner} className="h-4 w-4 text-[8px]" />
-                    <span className="max-w-[120px] truncate text-[11px] font-bold text-ink-500">{owner.name}</span>
+                    <span className="max-w-[140px] truncate text-[11px] font-bold text-ink-500">{owner.name}</span>
                   </span>
                 )}
               </div>
@@ -1140,37 +1199,42 @@ function MedDetails() {
           </div>
           <button
             onClick={closeModal}
-            className="grid h-8 w-8 place-items-center rounded-full text-ink-400 hover:bg-page transition-colors"
+            className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-white/70 text-ink-400 hover:bg-white transition-colors"
           >
             <Close className="h-4 w-4" />
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto no-scrollbar px-6">
-          {/* Quick facts */}
-          <div className="grid grid-cols-3 gap-2">
-            {quickStats.map((s) => (
-              <div key={s.label} className="rounded-2xl border border-line bg-page/40 p-2.5 text-center">
-                <s.icon className="mx-auto h-4 w-4 text-accent-500" />
-                <div className="mt-1 truncate text-[12px] font-extrabold text-ink-900" title={s.value}>
-                  {s.value}
+        {/* Landscape body: details (left) · medical information (right) */}
+        <div className="grid flex-1 gap-5 overflow-y-auto no-scrollbar p-5 pt-3 md:grid-cols-2">
+          {/* LEFT — details */}
+          <div className="space-y-3">
+            <div className="text-[11px] font-bold uppercase tracking-wide text-ink-400">Details</div>
+            <div className="grid grid-cols-3 gap-2">
+              {quickStats.map((s) => (
+                <div key={s.label} className="rounded-2xl border border-line bg-page/40 p-2.5 text-center">
+                  <s.icon className="mx-auto h-4 w-4 text-accent-500" />
+                  <div className="mt-1 truncate text-[12px] font-extrabold text-ink-900" title={s.value}>
+                    {s.value}
+                  </div>
+                  <div className="text-[9px] font-bold uppercase tracking-wide text-ink-400">{s.label}</div>
                 </div>
-                <div className="text-[9px] font-bold uppercase tracking-wide text-ink-400">{s.label}</div>
-              </div>
-            ))}
+              ))}
+            </div>
+            <div className="divide-y divide-line rounded-2xl border border-line">
+              {rows.map(([k, v]) => (
+                <div key={k} className="flex items-start justify-between gap-3 px-4 py-2.5">
+                  <span className="shrink-0 text-[12px] font-semibold text-ink-500">{k}</span>
+                  <span className="min-w-0 break-words text-right text-[13px] font-bold text-ink-900">{v}</span>
+                </div>
+              ))}
+            </div>
+            <p className="px-1 text-[11px] text-ink-400">Tap the image to upload your own pill/capsule photo (optional).</p>
           </div>
 
-          <div className="mt-3 divide-y divide-line rounded-2xl border border-line">
-            {rows.map(([k, v]) => (
-              <div key={k} className="flex items-start justify-between gap-3 px-4 py-2.5">
-                <span className="shrink-0 text-[12px] font-semibold text-ink-500">{k}</span>
-                <span className="min-w-0 break-words text-right text-[13px] font-bold text-ink-900">{v}</span>
-              </div>
-            ))}
-          </div>
-
-          <div className="mt-4 text-[11px] font-bold uppercase tracking-wide text-ink-400">Medical information</div>
-          <div className="mt-2 space-y-2.5">
+          {/* RIGHT — medical information */}
+          <div className="space-y-2.5">
+            <div className="text-[11px] font-bold uppercase tracking-wide text-ink-400">Medical information</div>
             {infoRows.map(([k, v]) => (
               <div key={k} className="rounded-2xl border border-line bg-page/40 p-3">
                 <div className="text-[11px] font-bold text-accent-600">{k}</div>
@@ -1178,41 +1242,36 @@ function MedDetails() {
               </div>
             ))}
           </div>
-
-          <p className="mt-3 px-1 text-[11px] text-ink-400">Tap the image to upload your own pill/capsule photo (optional).</p>
         </div>
 
-        <div className="flex flex-col gap-2.5 p-6 pt-4">
-          <div className="flex gap-3">
+        {/* Footer — all actions in one row */}
+        <div className="flex gap-2.5 border-t border-line p-4">
+          <button
+            onClick={() => openEditMed(med.id)}
+            className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-line py-2.5 text-[12px] font-bold text-ink-600 hover:bg-page transition-colors"
+          >
+            <Note className="h-4 w-4" /> Edit
+          </button>
+          <button
+            onClick={() => duplicateMedication(med.id)}
+            className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-line py-2.5 text-[12px] font-bold text-ink-600 hover:bg-page transition-colors"
+          >
+            <Plus className="h-4 w-4" /> Duplicate
+          </button>
+          <button
+            onClick={() => openScheduleMed(med.id)}
+            className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-brand-500 py-2.5 text-[12px] font-bold text-white hover:bg-brand-600 transition-colors"
+          >
+            <CalendarDays className="h-4 w-4" /> Add to calendar
+          </button>
+          {med.scheduledToday && (
             <button
-              onClick={() => openEditMed(med.id)}
-              className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-line py-2.5 text-[13px] font-bold text-ink-600 hover:bg-page transition-colors"
+              onClick={() => requestConfirm({ kind: 'unschedule', medId: med.id })}
+              className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-amber-200 bg-amber-50 py-2.5 text-[12px] font-bold text-warn-500 hover:bg-amber-100 transition-colors"
             >
-              <Note className="h-4 w-4" /> Edit
+              <Trash className="h-4 w-4" /> Remove
             </button>
-            <button
-              onClick={() => duplicateMedication(med.id)}
-              className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-line py-2.5 text-[13px] font-bold text-ink-600 hover:bg-page transition-colors"
-            >
-              <Plus className="h-4 w-4" /> Duplicate
-            </button>
-          </div>
-          <div className="flex gap-3">
-            <button
-              onClick={() => openScheduleMed(med.id)}
-              className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-brand-500 py-2.5 text-[13px] font-bold text-white hover:bg-brand-600 transition-colors"
-            >
-              <CalendarDays className="h-4 w-4" /> Add to calendar
-            </button>
-            {med.scheduledToday && (
-              <button
-                onClick={() => requestConfirm({ kind: 'unschedule', medId: med.id })}
-                className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-amber-200 bg-amber-50 py-2.5 text-[13px] font-bold text-warn-500 hover:bg-amber-100 transition-colors"
-              >
-                <Trash className="h-4 w-4" /> Remove from calendar
-              </button>
-            )}
-          </div>
+          )}
         </div>
       </div>
     </div>
@@ -1220,24 +1279,53 @@ function MedDetails() {
 }
 
 function Restock() {
-  const { restockId, inventory, restock, closeModal } = useApp()
+  const { restockId, inventory, restock, closeModal, usersById } = useApp()
   const item = inventory.find((it) => it.id === restockId)
   const [qty, setQty] = useState(30)
   if (!item) return null
+  const low = item.days <= 10
+  const owner = usersById[item.user]
+  const newDays = item.days + qty
 
   return (
-    <Shell icon={RestockIcon} tone="brand" title="Restock medication" subtitle="How many units to add?">
-      <div className="flex items-center justify-between rounded-2xl border border-line bg-page/50 p-3">
-        <div className="leading-tight">
-          <div className="text-[14px] font-extrabold text-ink-900">{item.name}</div>
-          <div className="text-[12px] text-ink-500">{item.detail}</div>
+    <Shell icon={RestockIcon} tone="brand" title="Restock medication" subtitle="Top up this medication's stock">
+      {/* Stock overview */}
+      <div className={'rounded-2xl border p-3.5 ' + (low ? 'border-amber-200 bg-amber-50/40' : 'border-line bg-page/40')}>
+        <div className="flex items-center gap-3">
+          <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-line bg-white">
+            <PillGlyph tone={item.tone} className="h-7 w-7" />
+          </span>
+          <div className="min-w-0 flex-1">
+            <div className="truncate text-[14px] font-extrabold text-ink-900">{item.name}</div>
+            <div className="flex items-center gap-1.5 truncate text-[11px] text-ink-400">
+              {owner && (
+                <span className="inline-flex items-center gap-1 font-bold text-ink-500">
+                  <UserAvatar user={owner} className="h-3.5 w-3.5 text-[7px]" />
+                  {owner.name}
+                </span>
+              )}
+              {item.detail && <span className="truncate">· {item.detail}</span>}
+            </div>
+          </div>
+          {low && (
+            <span className="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-warn-500">
+              Low
+            </span>
+          )}
         </div>
-        <div className="text-right leading-tight">
-          <div className="text-[15px] font-extrabold text-ink-900">{item.days}</div>
-          <div className="text-[10px] font-semibold text-ink-400">days left</div>
+        <div className="mt-3 grid grid-cols-2 gap-2">
+          <div className="rounded-xl bg-white p-2 text-center">
+            <div className={'text-[16px] font-extrabold ' + (low ? 'text-warn-500' : 'text-ink-900')}>{item.days}</div>
+            <div className="text-[9px] font-bold uppercase tracking-wide text-ink-400">Days left</div>
+          </div>
+          <div className="rounded-xl bg-white p-2 text-center">
+            <div className="text-[13px] font-extrabold text-ink-900">{emptyByLabel(item.days)}</div>
+            <div className="text-[9px] font-bold uppercase tracking-wide text-ink-400">Empty by</div>
+          </div>
         </div>
       </div>
 
+      {/* Units to add */}
       <div className="mt-4">
         <div className={label}>Units to add</div>
         <div className="mt-1 flex items-center gap-2">
@@ -1262,7 +1350,7 @@ function Restock() {
           </button>
         </div>
         <div className="mt-2 flex gap-2">
-          {[10, 30, 60].map((n) => (
+          {[10, 30, 60, 90].map((n) => (
             <button
               key={n}
               onClick={() => setQty(n)}
@@ -1275,9 +1363,14 @@ function Restock() {
             </button>
           ))}
         </div>
-        <p className="mt-2 text-center text-[11px] font-medium text-ink-400">
-          New total: <span className="font-bold text-ink-700">{item.days + qty} days</span>
-        </p>
+      </div>
+
+      {/* After-restock preview */}
+      <div className="mt-3 flex items-center justify-between gap-2 rounded-2xl border border-brand-200 bg-brand-50/50 px-4 py-2.5">
+        <span className="text-[12px] font-semibold text-brand-700">After restock</span>
+        <span className="text-right text-[12px] font-extrabold text-brand-700">
+          {newDays} days · empty by {emptyByLabel(newDays)}
+        </span>
       </div>
 
       <Actions

@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useLayoutEffect } from 'react'
 import { Logo, Bell, Clock, CheckCircle } from '../icons.jsx'
+import { MedGlyph, UserAvatar, userTone } from '../ui.jsx'
 import { user } from '../data.js'
 import { useApp } from '../store.jsx'
 
@@ -13,7 +14,7 @@ const toneDot = {
 
 // Slim brand/identity header — no tab navigation (single-page app).
 export default function Header() {
-  const { schedule, markTaken, notice, session, logout, authEnabled } = useApp()
+  const { schedule, markTaken, notice, session, logout, authEnabled, usersById } = useApp()
   const upcoming = schedule.filter((m) => !m.taken && !m.skipped)
 
   const email = session?.user?.email || ''
@@ -95,52 +96,70 @@ export default function Header() {
             <>
               {/* Blurred backdrop */}
               <div className="fixed inset-0 z-40 bg-ink-900/25 backdrop-blur-sm" onClick={() => setOpen(false)} />
-              <div className="absolute right-0 z-50 mt-2 w-72 overflow-hidden rounded-2xl border border-line bg-white shadow-2xl ring-1 ring-black/5">
-                <div className="flex items-center justify-between gap-2 bg-gradient-to-br from-brand-50 via-white to-white px-4 py-3">
-                  <div className="flex items-center gap-2">
-                    <span className="grid h-8 w-8 place-items-center rounded-xl bg-brand-50 text-brand-600 ring-1 ring-black/5">
-                      <Bell className="h-4 w-4" />
+              <div className="absolute right-0 z-50 mt-2 w-80 overflow-hidden rounded-2xl border border-line bg-white shadow-2xl ring-1 ring-black/5">
+                <div className="flex items-center justify-between gap-2 bg-gradient-to-br from-brand-50 via-white to-white px-4 py-3.5">
+                  <div className="flex items-center gap-2.5">
+                    <span className="grid h-9 w-9 place-items-center rounded-xl bg-brand-50 text-brand-600 ring-1 ring-black/5">
+                      <Bell className="h-4.5 w-4.5" />
                     </span>
                     <div className="leading-tight">
-                      <div className="text-[13px] font-extrabold text-ink-900">Notifications</div>
-                      <div className="text-[10px] font-semibold text-ink-400">
-                        {upcoming.length} upcoming {upcoming.length === 1 ? 'dose' : 'doses'}
+                      <div className="text-[14px] font-extrabold text-ink-900">Notifications</div>
+                      <div className="text-[11px] font-semibold text-ink-400">
+                        {upcoming.length} upcoming {upcoming.length === 1 ? 'dose' : 'doses'} today
                       </div>
                     </div>
                   </div>
                   {upcoming.length > 0 && (
-                    <span className="rounded-full bg-coral-500 px-2 py-0.5 text-[10px] font-bold text-white">{upcoming.length}</span>
+                    <span className="rounded-full bg-coral-500 px-2 py-0.5 text-[11px] font-bold text-white">{upcoming.length}</span>
                   )}
                 </div>
                 {upcoming.length === 0 ? (
-                  <div className="px-4 py-6 text-center text-[12px] text-ink-400">
-                    <CheckCircle className="mx-auto mb-1 h-6 w-6 text-brand-400" />
+                  <div className="px-4 py-8 text-center text-[12px] text-ink-400">
+                    <CheckCircle className="mx-auto mb-1.5 h-7 w-7 text-brand-400" />
                     All caught up!
+                    <div className="mt-0.5 text-[11px] text-ink-400">No pending doses right now.</div>
                   </div>
                 ) : (
-                  <div className="max-h-64 overflow-y-auto scroll-thin p-1.5">
-                    {upcoming.map((m) => (
-                      <div
-                        key={m.id}
-                        className="flex items-center justify-between gap-2 rounded-xl px-2.5 py-2 transition-colors hover:bg-page"
-                      >
-                        <div className="flex min-w-0 items-center gap-2">
-                          <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-amber-50 text-warn-500">
-                            <Clock className="h-4 w-4" />
-                          </span>
-                          <div className="min-w-0 leading-tight">
-                            <div className="truncate text-[12px] font-bold text-ink-900">{m.name}</div>
-                            <div className="text-[10px] text-ink-400">{m.time}</div>
-                          </div>
-                        </div>
-                        <button
-                          onClick={() => markTaken(m.id)}
-                          className="shrink-0 rounded-full bg-brand-500 px-2.5 py-1 text-[10px] font-bold text-white hover:bg-brand-600 transition-colors"
+                  <div className="max-h-80 space-y-1.5 overflow-y-auto scroll-thin p-2">
+                    {upcoming.map((m) => {
+                      const owner = usersById[m.user]
+                      const uTone = (userTone[owner?.tone] || userTone.brand).text
+                      return (
+                        <div
+                          key={m.id}
+                          className="flex items-center justify-between gap-2 rounded-xl border border-line/70 bg-white px-2.5 py-2.5 transition-colors hover:border-brand-200 hover:bg-page/40"
                         >
-                          Take
-                        </button>
-                      </div>
-                    ))}
+                          <div className="flex min-w-0 items-center gap-2.5">
+                            <span className="grid h-9 w-9 shrink-0 place-items-center overflow-hidden rounded-lg border border-line bg-white">
+                              <MedGlyph med={m} className="h-6 w-6" />
+                            </span>
+                            <div className="min-w-0 leading-tight">
+                              <div className="truncate text-[12px] font-bold text-ink-900">{m.name}</div>
+                              <div className="truncate text-[10px] text-ink-400">
+                                {m.dosage} • {m.unit}
+                              </div>
+                              <div className="mt-0.5 flex items-center gap-2">
+                                <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-ink-500">
+                                  <Clock className="h-3 w-3" /> {m.time}
+                                </span>
+                                {owner && (
+                                  <span className={'inline-flex items-center gap-1 text-[10px] font-bold ' + uTone}>
+                                    <UserAvatar user={owner} className="h-3.5 w-3.5 text-[7px]" />
+                                    {owner.name}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => markTaken(m.id)}
+                            className="shrink-0 rounded-full bg-brand-500 px-3 py-1.5 text-[11px] font-bold text-white hover:bg-brand-600 transition-colors"
+                          >
+                            Take
+                          </button>
+                        </div>
+                      )
+                    })}
                   </div>
                 )}
               </div>
