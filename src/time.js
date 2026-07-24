@@ -108,6 +108,24 @@ export function addDays(d, n) {
   return x
 }
 
+// A plain 'YYYY-MM-DD' key for a calendar date (used to key per-day time overrides).
+export function isoDate(d = istCalendarDate()) {
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
+
+// The time a medication is due on a specific calendar date. A per-day override
+// (set by rescheduling/snoozing that day) wins for that date only; every other
+// date falls back to the medication's recurring base time — so moving one day's
+// dose never shifts future occurrences.
+export function effectiveTime(med, date) {
+  const ov = med && med.timeOverrides
+  const t = ov && ov[isoDate(date)]
+  return t || med.time
+}
+
 export function formatLongDate(d) {
   return d.toLocaleDateString('en-GB', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' })
 }
@@ -121,7 +139,8 @@ export function emptyByLabel(days) {
   return formatShortDate(addDays(istCalendarDate(), days))
 }
 
-// ---- Dose-history collapsing -------------------------------------------------// A dose can produce several raw log rows in one day (e.g. Snoozed → Rescheduled →
+// ---- Dose-history collapsing -------------------------------------------------
+// A dose can produce several raw log rows in one day (e.g. Snoozed → Rescheduled →
 // Taken). For the timeline and every adherence/streak stat we want ONE entry per
 // logical dose, so repeated delays don't show as separate rows or inflate totals.
 // A dose is grouped by (member + medication + IST calendar day) and split into

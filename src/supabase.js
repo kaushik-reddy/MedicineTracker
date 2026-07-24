@@ -95,6 +95,7 @@ const medToRow = (m) => ({
     _activeDays: m.activeDays ?? null,
     _stockUnits: m.stockUnits ?? null,
     _stockAnchor: m.stockAnchor ?? null,
+    _timeOverrides: m.timeOverrides ?? null,
   },
 })
 const rowToMed = (r) => ({
@@ -118,12 +119,14 @@ const rowToMed = (r) => ({
 
 // Split the persisted info blob back into details (`info`) + scheduling fields.
 function unpackInfo(raw) {
-  const { _startDate, _activeDays, _stockUnits, _stockAnchor, ...info } = raw && typeof raw === 'object' ? raw : {}
+  const { _startDate, _activeDays, _stockUnits, _stockAnchor, _timeOverrides, ...info } =
+    raw && typeof raw === 'object' ? raw : {}
   return {
     startDate: _startDate ?? undefined,
     activeDays: _activeDays ?? undefined,
     stockUnits: _stockUnits ?? undefined,
     stockAnchor: _stockAnchor ?? undefined,
+    timeOverrides: _timeOverrides ?? undefined,
     info: Object.keys(info).length ? info : undefined,
   }
 }

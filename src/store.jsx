@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useCallback, useMemo, useRef, useEffect } from 'react'
 import { medications as medsSeed, inventory as invSeed, history as histSeed, users as usersSeed } from './data.js'
-import { timeAfterNow, istTimeLabel, istCalendarDate, addDays, medActiveOn, sameDay, dosesPerDay, remainingUnits } from './time.js'
+import { timeAfterNow, istTimeLabel, istCalendarDate, addDays, medActiveOn, sameDay, dosesPerDay, remainingUnits, effectiveTime, isoDate } from './time.js'
 import {
   db,
   loadAll,
@@ -101,6 +101,18 @@ function backfillStockBaseline(medications, inventory) {
     return nm
   })
   return { next, changed }
+}
+
+// Build a fresh per-day time-override map: keep only today/future entries (drop
+// stale past days) and set the moved time for `date`. Storing overrides per date
+// keeps a rescheduled/snoozed dose local to that day instead of shifting the series.
+function withTimeOverride(med, date, time) {
+  const key = isoDate(date)
+  const next = {}
+  const cur = med.timeOverrides || {}
+  for (const k of Object.keys(cur)) if (k >= key) next[k] = cur[k]
+  next[key] = time
+  return next
 }
 
 export function AppProvider({ children }) {
@@ -317,24 +329,29 @@ export function AppProvider({ children }) {
   }, [])
 
   // ---- Derived state: everything below stays in sync with `medications` ----
-  const schedule = useMemo(
-    () =>
-      medications
-        .filter((m) => m.scheduledToday && medActiveOn(m, istCalendarDate()))
-        .slice()
-        .sort((a, b) => parseMins(a.time) - parseMins(b.time)),
-    [medications],
-  )
+  // Apply the per-day time override for `date` so a dose moved on one day shows at
+  // its moved time that day only; other days keep the recurring base time.
+  const withDayTime = (m, date) => {
+    const t = effectiveTime(m, date)
+    return t === m.time ? m : { ...m, time: t, label: hourLabel(t) }
+  }
+
+  const schedule = useMemo(() => {
+    const today = istCalendarDate()
+    return medications
+      .filter((m) => m.scheduledToday && medActiveOn(m, today))
+      .map((m) => withDayTime(m, today))
+      .sort((a, b) => parseMins(a.time) - parseMins(b.time))
+  }, [medications])
 
   // Same list, but for tomorrow's calendar day (repeat days may differ).
-  const scheduleTomorrow = useMemo(
-    () =>
-      medications
-        .filter((m) => m.scheduledToday && medActiveOn(m, addDays(istCalendarDate(), 1)))
-        .slice()
-        .sort((a, b) => parseMins(a.time) - parseMins(b.time)),
-    [medications],
-  )
+  const scheduleTomorrow = useMemo(() => {
+    const tomorrow = addDays(istCalendarDate(), 1)
+    return medications
+      .filter((m) => m.scheduledToday && medActiveOn(m, tomorrow))
+      .map((m) => withDayTime(m, tomorrow))
+      .sort((a, b) => parseMins(a.time) - parseMins(b.time))
+  }, [medications])
 
   const nextDose = useMemo(() => {
     const m = schedule.find((x) => !x.taken && !x.skipped)
@@ -385,8 +402,9 @@ export function AppProvider({ children }) {
         // Use the caller-supplied time if they took it earlier and are logging it
         // late; otherwise stamp the current time.
         const marked = (markedTime || '').trim() || istTimeLabel()
+        const due = effectiveTime(acted, istCalendarDate())
         db.updateMedication(acted.id, { taken: true, skipped: false })
-        pushHistory({ ts: Date.now(), day: 'Today', date: `Today, ${acted.time}`, scheduled: acted.time, marked, name: acted.name, dose: acted.dosage, status: 'Taken', tone: acted.tone, user: acted.user })
+        pushHistory({ ts: Date.now(), day: 'Today', date: `Today, ${due}`, scheduled: due, marked, name: acted.name, dose: acted.dosage, status: 'Taken', tone: acted.tone, user: acted.user })
         showToast(`${userName(acted.user)} took ${acted.name}`, 'brand')
       }
     },
@@ -437,8 +455,9 @@ export function AppProvider({ children }) {
         }),
       )
       if (acted) {
+        const due = effectiveTime(acted, istCalendarDate())
         db.updateMedication(acted.id, { skipped: true, taken: false })
-        pushHistory({ ts: Date.now(), day: 'Today', date: `Today, ${acted.time}`, scheduled: acted.time, marked: null, name: acted.name, dose: acted.dosage, status: 'Skipped', tone: 'warn', user: acted.user })
+        pushHistory({ ts: Date.now(), day: 'Today', date: `Today, ${due}`, scheduled: due, marked: null, name: acted.name, dose: acted.dosage, status: 'Skipped', tone: 'warn', user: acted.user })
         showToast(`${userName(acted.user)} skipped ${acted.name}`, 'warn')
       }
     },
@@ -447,17 +466,23 @@ export function AppProvider({ children }) {
 
   const rescheduleDose = useCallback(
     (id, time) => {
+      const today = istCalendarDate()
       let acted = null
+      let from = null
+      let overrides = null
       setMedications((meds) =>
         meds.map((m) => {
           if (m.id !== id) return m
           acted = m
-          return { ...m, time, label: hourLabel(time) }
+          from = effectiveTime(m, today) // where it sat before this move (that day)
+          overrides = withTimeOverride(m, today, time)
+          // Only this day's occurrence moves; the recurring base time is untouched.
+          return { ...m, timeOverrides: overrides }
         }),
       )
       if (acted) {
-        db.updateMedication(acted.id, { time, label: hourLabel(time) })
-        pushHistory({ ts: Date.now(), day: 'Today', date: `Today, ${time}`, scheduled: acted.time, marked: time, name: acted.name, dose: acted.dosage, status: 'Rescheduled', tone: 'accent', user: acted.user })
+        db.upsertMedication({ ...acted, timeOverrides: overrides })
+        pushHistory({ ts: Date.now(), day: 'Today', date: `Today, ${time}`, scheduled: from, marked: time, name: acted.name, dose: acted.dosage, status: 'Rescheduled', tone: 'accent', user: acted.user })
         showToast(`${acted.name} rescheduled to ${time}`, 'accent')
       }
     },
@@ -467,33 +492,22 @@ export function AppProvider({ children }) {
   // Add (or update) a medication on the schedule with chosen time/frequency.
   const scheduleMed = useCallback(
     (id, { time, frequency }) => {
-      let acted = null
-      setMedications((meds) =>
-        meds.map((m) => {
-          if (m.id !== id) return m
-          acted = m
-          return {
-            ...m,
-            time: time || m.time,
-            label: hourLabel(time || m.time),
-            frequency: frequency || m.frequency,
-            scheduledToday: true,
-            taken: false,
-            skipped: false,
-          }
-        }),
-      )
-      if (acted) {
-        db.updateMedication(acted.id, {
-          time: time || acted.time,
-          label: hourLabel(time || acted.time),
-          frequency: frequency || acted.frequency,
-          scheduled_today: true,
-          taken: false,
-          skipped: false,
-        })
-        showToast(`${acted.name} added to schedule`, 'brand')
+      const current = medicationsRef.current.find((m) => m.id === id)
+      if (!current) return
+      const newTime = time || current.time
+      const updated = {
+        ...current,
+        time: newTime,
+        label: hourLabel(newTime),
+        frequency: frequency || current.frequency,
+        scheduledToday: true,
+        taken: false,
+        skipped: false,
+        timeOverrides: undefined, // a new recurring time applies to every day
       }
+      setMedications((meds) => meds.map((m) => (m.id === id ? updated : m)))
+      db.upsertMedication(updated)
+      showToast(`${current.name} added to schedule`, 'brand')
     },
     [showToast],
   )
@@ -519,17 +533,22 @@ export function AppProvider({ children }) {
   const snoozeDose = useCallback(
     (id, mins = 15) => {
       const time = timeAfterNow(mins)
+      const today = istCalendarDate()
       let acted = null
+      let from = null
+      let overrides = null
       setMedications((meds) =>
         meds.map((m) => {
           if (m.id !== id) return m
           acted = m
-          return { ...m, time, label: hourLabel(time), taken: false, skipped: false }
+          from = effectiveTime(m, today)
+          overrides = withTimeOverride(m, today, time)
+          return { ...m, timeOverrides: overrides, taken: false, skipped: false }
         }),
       )
       if (acted) {
-        db.updateMedication(acted.id, { time, label: hourLabel(time), taken: false, skipped: false })
-        pushHistory({ ts: Date.now(), day: 'Today', date: `Today, ${time}`, scheduled: acted.time, marked: time, name: acted.name, dose: acted.dosage, status: 'Snoozed', tone: 'warn', user: acted.user })
+        db.upsertMedication({ ...acted, timeOverrides: overrides, taken: false, skipped: false })
+        pushHistory({ ts: Date.now(), day: 'Today', date: `Today, ${time}`, scheduled: from, marked: time, name: acted.name, dose: acted.dosage, status: 'Snoozed', tone: 'warn', user: acted.user })
         showToast(`${acted.name} snoozed ${mins} min · now ${time}`, 'warn')
       }
     },
@@ -539,17 +558,22 @@ export function AppProvider({ children }) {
   // Snooze to an exact precomputed time (used after a confirmation dialog).
   const snoozeDoseTo = useCallback(
     (id, time, mins) => {
+      const today = istCalendarDate()
       let acted = null
+      let from = null
+      let overrides = null
       setMedications((meds) =>
         meds.map((m) => {
           if (m.id !== id) return m
           acted = m
-          return { ...m, time, label: hourLabel(time), taken: false, skipped: false }
+          from = effectiveTime(m, today)
+          overrides = withTimeOverride(m, today, time)
+          return { ...m, timeOverrides: overrides, taken: false, skipped: false }
         }),
       )
       if (acted) {
-        db.updateMedication(acted.id, { time, label: hourLabel(time), taken: false, skipped: false })
-        pushHistory({ ts: Date.now(), day: 'Today', date: `Today, ${time}`, scheduled: acted.time, marked: time, name: acted.name, dose: acted.dosage, status: 'Snoozed', tone: 'warn', user: acted.user })
+        db.upsertMedication({ ...acted, timeOverrides: overrides, taken: false, skipped: false })
+        pushHistory({ ts: Date.now(), day: 'Today', date: `Today, ${time}`, scheduled: from, marked: time, name: acted.name, dose: acted.dosage, status: 'Snoozed', tone: 'warn', user: acted.user })
         showToast(`${acted.name} snoozed ${mins} min · now ${time}`, 'warn')
       }
     },
