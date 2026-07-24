@@ -1,15 +1,16 @@
 import { useState, useMemo } from 'react'
-import { ChevronRight, Droplet, Clock, MoodFace, moodKey, MOOD_COLOR } from '../icons.jsx'
+import { ChevronRight, Droplet, Footprints, Moon, Clock, MoodFace, moodKey, MOOD_COLOR } from '../icons.jsx'
 import { Card, SectionTitle, Illustration, userTone, EmptyState, LoadingState, PillGlyph, UserAvatar } from '../ui.jsx'
 import { tips } from '../data.js'
 import { useApp } from '../store.jsx'
 import { collapseDoseHistory } from '../time.js'
 
 export function HistoryCard({ className = '' }) {
-  const { history, symptoms, openModal, usersById, dataLoading } = useApp()
+  const { history, symptoms, trackerEvents, openModal, usersById, dataLoading } = useApp()
 
-  // Merge dose logs and symptom logs into one time-sorted feed. Dose rows are
-  // collapsed so a dose that was snoozed/rescheduled before being taken shows once.
+  // Merge dose logs, symptom logs and tracker events into one time-sorted feed.
+  // Dose rows are collapsed so a dose that was snoozed/rescheduled before being
+  // taken shows once.
   const feed = useMemo(() => {
     const doses = collapseDoseHistory(history).map((h) => ({ ...h, kind: 'dose' }))
     const syms = symptoms.map((s) => ({
@@ -24,8 +25,19 @@ export function HistoryCard({ className = '' }) {
         ? new Date(s.ts).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
         : 'Today',
     }))
-    return [...doses, ...syms].sort((a, b) => (b.ts || 0) - (a.ts || 0))
-  }, [history, symptoms])
+    const trk = (trackerEvents || []).map((e) => ({
+      kind: 'tracker',
+      id: 'trk-' + e.id,
+      ts: e.ts,
+      tkind: e.kind,
+      amount: e.amount,
+      total: e.total,
+      date: e.ts
+        ? new Date(e.ts).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+        : 'Today',
+    }))
+    return [...doses, ...syms, ...trk].sort((a, b) => (b.ts || 0) - (a.ts || 0))
+  }, [history, symptoms, trackerEvents])
 
   const sevBadge = {
     Mild: 'bg-brand-50 text-brand-600',
@@ -39,6 +51,24 @@ export function HistoryCard({ className = '' }) {
     Missed: 'bg-rose-50 text-coral-500',
     Snoozed: 'bg-amber-50 text-warn-500',
     Rescheduled: 'bg-violet-50 text-accent-600',
+  }
+
+  // Per-tracker presentation for the feed rows.
+  const TRK = {
+    water: { icon: Droplet, label: 'Water', chip: 'bg-sky-50 text-sky-600', badge: 'bg-sky-50 text-sky-600' },
+    steps: { icon: Footprints, label: 'Steps', chip: 'bg-brand-50 text-brand-600', badge: 'bg-brand-50 text-brand-600' },
+    sleep: { icon: Moon, label: 'Sleep', chip: 'bg-violet-50 text-accent-600', badge: 'bg-violet-50 text-accent-600' },
+  }
+  const trkAmount = (kind, n) => {
+    const a = Math.abs(n)
+    if (kind === 'water') return `${a} ml`
+    if (kind === 'steps') return a.toLocaleString()
+    return `${a} min`
+  }
+  const trkTotal = (kind, t) => {
+    if (kind === 'water') return `${t} ml today`
+    if (kind === 'steps') return `${t.toLocaleString()} steps today`
+    return `${Math.floor(t / 60)}h ${t % 60}m today`
   }
 
   return (
@@ -63,6 +93,32 @@ export function HistoryCard({ className = '' }) {
             {feed.map((h) => {
               const u = usersById[h.user]
               const uTone = (userTone[u?.tone] || userTone.brand).text
+              if (h.kind === 'tracker') {
+                const t = TRK[h.tkind]
+                const Icon = t.icon
+                const up = h.amount > 0
+                return (
+                  <div
+                    key={h.id}
+                    className="flex items-center gap-2.5 rounded-xl border border-line/60 bg-white py-2 pl-2 pr-2.5"
+                  >
+                    <span className={'grid h-8 w-8 shrink-0 place-items-center rounded-lg ' + t.chip}>
+                      <Icon className="h-4 w-4" />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5">
+                        <span className="truncate text-[12px] font-bold text-ink-900">{t.label}</span>
+                        <span className="shrink-0 text-[10px] font-medium text-ink-400">{trkTotal(h.tkind, h.total)}</span>
+                      </div>
+                      <div className="truncate text-[10px] text-ink-400">{h.date}</div>
+                    </div>
+                    <span className={'shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold ' + t.badge}>
+                      {up ? '+' : '−'}
+                      {trkAmount(h.tkind, h.amount)}
+                    </span>
+                  </div>
+                )
+              }
               if (h.kind === 'symptom') {
                 return (
                   <div

@@ -145,6 +145,7 @@ export function AppProvider({ children }) {
   const [stepsGoal, setStepsGoal] = useState(stepsGoalSeed)
   const [sleep, setSleep] = useState(sleepSeed)
   const [sleepGoal, setSleepGoal] = useState(sleepGoalSeed)
+  const [trackerEvents, setTrackerEvents] = useState([])
   const [modal, setModal] = useState(null)
   const [notice, setNotice] = useState(null)
   const [confirm, setConfirm] = useState(null)
@@ -202,6 +203,7 @@ export function AppProvider({ children }) {
       setWater([])
       setSteps([])
       setSleep([])
+      setTrackerEvents([])
       setDataLoading(false)
       return
     }
@@ -832,15 +834,29 @@ export function AppProvider({ children }) {
   // ---- Daily health trackers (Water / Steps / Sleep) ----
   // Values are keyed per day; adds write through to Supabase (no-op when off).
   // Reading the latest rows from a ref keeps the persisted total correct even
-  // though React defers the setState update.
+  // though React defers the setState update. Each add also raises a toast and
+  // appends to the Recent History feed (trackerEvents).
+  const TRACK_TONE = { water: 'sky', steps: 'brand', sleep: 'accent' }
+  const trackMsg = (kind, applied) => {
+    const verb = applied > 0 ? 'Logged' : 'Removed'
+    const abs = Math.abs(applied)
+    if (kind === 'water') return `${verb} ${abs} ml water`
+    if (kind === 'steps') return `${verb} ${abs.toLocaleString()} steps`
+    return `${verb} ${abs} min sleep`
+  }
   const bumpTracker = (kind, field, ref, setter) => (amount) => {
     const key = todayWaterKey()
     const rows = ref.current
     const idx = rows.findIndex((r) => r.date === key)
     const cur = idx === -1 ? 0 : rows[idx][field]
     const value = Math.max(0, cur + Math.round(Number(amount) || 0))
+    const applied = value - cur // actual change after clamping at zero
     setter(idx === -1 ? [...rows, { date: key, [field]: value }] : rows.map((r, i) => (i === idx ? { ...r, [field]: value } : r)))
     db.upsertTracker({ kind, date: key, value })
+    if (applied !== 0) {
+      setTrackerEvents((list) => [{ id: newId(), ts: Date.now(), kind, amount: applied, total: value }, ...list].slice(0, 200))
+      showToast(trackMsg(kind, applied), TRACK_TONE[kind])
+    }
   }
 
   const addWater = useCallback(bumpTracker('water', 'ml', waterRef, setWater), [])
@@ -904,6 +920,7 @@ export function AppProvider({ children }) {
     sleepToday,
     addSleep,
     changeSleepGoal,
+    trackerEvents,
     schedule,
     scheduleTomorrow,
     nextDose,
