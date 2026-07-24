@@ -31,7 +31,7 @@ import {
 } from '../icons.jsx'
 import { PillGlyph, MedGlyph, UserAvatar } from '../ui.jsx'
 import { Calendar } from './ScheduleView.jsx'
-import { useNow, istCalendarDate, sameDay, addDays, formatLongDate, medActiveOn, istTimeLabel, emptyByLabel } from '../time.js'
+import { useNow, istCalendarDate, sameDay, addDays, formatLongDate, medActiveOn, istTimeLabel, emptyByLabel, collapseDoseHistory } from '../time.js'
 import { DEFAULT_MED_INFO } from '../data.js'
 
 const field =
@@ -1618,6 +1618,9 @@ function HistoryLog() {
   const [sort, setSort] = useState('new')
 
   const medNames = [...new Set(history.map((h) => h.name))].sort()
+  // One entry per logical dose: repeated snooze/reschedule rows for the same dose on
+  // the same day are folded into a single timeline entry showing its final outcome.
+  const doses = useMemo(() => collapseDoseHistory(history), [history])
 
   const statusBadge = {
     Taken: 'bg-brand-50 text-brand-600',
@@ -1634,7 +1637,7 @@ function HistoryLog() {
     Rescheduled: 'bg-accent-500',
   }
 
-  let rows = history.filter(
+  let rows = doses.filter(
     (h) =>
       (member === 'all' || h.user === member) &&
       (medName === 'all' || h.name === medName) &&
@@ -1747,6 +1750,9 @@ function HistoryLog() {
                         {h.status === 'Taken' ? (
                           <>
                             Taken <span className="font-bold text-brand-600">{h.marked || '—'}</span>
+                            {h.moves > 0 && (
+                              <span className="text-ink-400"> · after {h.moves} {h.moves === 1 ? 'delay' : 'delays'}</span>
+                            )}
                           </>
                         ) : h.status === 'Snoozed' ? (
                           <>

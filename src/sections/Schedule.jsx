@@ -2,7 +2,7 @@ import { useState, useRef, useLayoutEffect, useMemo } from 'react'
 import { ChevronRight, Clock, CheckCircle, TrendingUp, Check, Close } from '../icons.jsx'
 import { Card, SectionTitle, Dropdown, toneSoft, MedGlyph, userTone, UserAvatar } from '../ui.jsx'
 import { useApp } from '../store.jsx'
-import { medActiveOn, istCalendarDate, addDays, sameDay } from '../time.js'
+import { medActiveOn, istCalendarDate, addDays, sameDay, collapseDoseHistory } from '../time.js'
 
 const glanceIcon = { clock: Clock, check: CheckCircle, trend: TrendingUp }
 
@@ -244,17 +244,20 @@ export function GlanceCard({ className = '' }) {
   const { glance, medications, users, history } = useApp()
 
   // Dose totals for the selected range (Today is live; others come from history).
+  // History is collapsed to one entry per dose so snooze/reschedule don't inflate
+  // totals — keeping this card consistent with the Adherence card.
+  const doses = useMemo(() => collapseDoseHistory(history), [history])
   const stats = useMemo(() => {
     if (range === 'Today') return { taken: glance.takenCount, total: glance.total }
     if (range === 'Yesterday') {
       const y = addDays(istCalendarDate(), -1)
-      const entries = history.filter((e) => e.ts && sameDay(istCalendarDate(e.ts), y))
+      const entries = doses.filter((e) => e.ts && sameDay(istCalendarDate(e.ts), y))
       return { taken: entries.filter((e) => e.status === 'Taken').length, total: entries.length }
     }
     const cutoff = Date.now() - 7 * 86400000
-    const entries = history.filter((e) => e.ts >= cutoff)
+    const entries = doses.filter((e) => e.ts >= cutoff)
     return { taken: entries.filter((e) => e.status === 'Taken').length, total: entries.length }
-  }, [range, glance, history])
+  }, [range, glance, doses])
 
   const donePct = stats.total ? Math.round((stats.taken / stats.total) * 100) : 0
   const rangeLabel = range === 'Today' ? 'today' : range === 'Yesterday' ? 'yesterday' : 'this week'

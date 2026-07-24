@@ -121,6 +121,59 @@ export function emptyByLabel(days) {
   return formatShortDate(addDays(istCalendarDate(), days))
 }
 
+// ---- Dose-history collapsing -------------------------------------------------
+// A dose can produce several raw log rows in one day (e.g. Snoozed → Rescheduled →
+// Taken). For the timeline and every adherence/streak stat we want ONE entry per
+// logical dose, so repeated delays don't show as separate rows or inflate totals.
+// A dose is grouped by (member + medication + IST calendar day) and split into
+// "sessions" that each end at a terminal status (Taken/Skipped/Missed). Trailing
+// non-terminal events (still pending / only snoozed) form one open session.
+const TERMINAL_STATUS = new Set(['Taken', 'Skipped', 'Missed'])
+
+export function collapseDoseHistory(history = []) {
+  const groups = new Map()
+  for (const e of history) {
+    if (!e) continue
+    const dayKey = e.ts ? istCalendarDate(e.ts).getTime() : `no-ts-${e.id}`
+    const key = `${e.user ?? ''}|${e.name ?? ''}|${dayKey}`
+    if (!groups.has(key)) groups.set(key, [])
+    groups.get(key).push(e)
+  }
+
+  const doses = []
+  for (const entries of groups.values()) {
+    const asc = entries.slice().sort((a, b) => (a.ts || 0) - (b.ts || 0))
+    let buf = []
+    const flush = (terminal) => {
+      const all = terminal ? [...buf, terminal] : buf
+      if (!all.length) return
+      const first = all[0]
+      const last = all[all.length - 1]
+      const takenEvt = all.find((x) => x.status === 'Taken')
+      const resolved = terminal || last
+      const moves = all.filter((x) => x.status === 'Snoozed' || x.status === 'Rescheduled').length
+      doses.push({
+        ...resolved,
+        id: resolved.id || first.id,
+        ts: resolved.ts || last.ts,
+        // Keep the ORIGINAL scheduled time (before any snooze/reschedule moved it).
+        scheduled: first.scheduled || first.time || resolved.scheduled,
+        marked: takenEvt ? takenEvt.marked : resolved.marked,
+        status: resolved.status,
+        moves, // how many times this dose was snoozed/rescheduled before resolving
+      })
+      buf = []
+    }
+    for (const e of asc) {
+      if (TERMINAL_STATUS.has(e.status)) flush(e)
+      else buf.push(e)
+    }
+    if (buf.length) flush(null)
+  }
+
+  return doses.sort((a, b) => (b.ts || 0) - (a.ts || 0))
+}
+
 // Weekday keys must match the picker in the Add/Edit medication form (Sun..Sat).
 export const DAY_KEYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 

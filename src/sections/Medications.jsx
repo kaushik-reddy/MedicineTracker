@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react'
 import { Plus, CheckCircle, Clock, Sun, Moon, Flame, Close, Pill } from '../icons.jsx'
 import { Card, SectionTitle, Dropdown, toneBar, MedGlyph, UserAvatar, userTone, EmptyState, LoadingState } from '../ui.jsx'
 import { useApp } from '../store.jsx'
-import { medActiveOn, istCalendarDate } from '../time.js'
+import { medActiveOn, istCalendarDate, sameDay, addDays, collapseDoseHistory } from '../time.js'
 
 const periodMeta = {
   am: { Icon: Sun, color: 'text-amber-500' },
@@ -128,15 +128,18 @@ export function AdherenceCard({ className = '' }) {
   const { users, medications, history } = useApp()
 
   // Adherence over the selected range, derived from the dose-log history.
+  // Collapse repeated snooze/reschedule rows so each dose counts once, and a dose
+  // that was delayed but eventually taken still counts as fully adhered.
   const rangeDays = range === 'This Year' ? 365 : range === 'This Month' ? 30 : 7
   const rangeLabel = range === 'This Year' ? 'this year' : range === 'This Month' ? 'this month' : 'this week'
+  const doses = useMemo(() => collapseDoseHistory(history), [history])
   const rangeStats = useMemo(() => {
     const cutoff = Date.now() - rangeDays * 86400000
-    const entries = history.filter((e) => e.ts >= cutoff)
+    const entries = doses.filter((e) => e.ts >= cutoff)
     const total = entries.length
     const taken = entries.filter((e) => e.status === 'Taken').length
     return { total, taken, pct: total ? Math.round((taken / total) * 100) : 0 }
-  }, [history, rangeDays])
+  }, [doses, rangeDays])
 
   const perUser = users
     .map((u) => {
@@ -147,25 +150,22 @@ export function AdherenceCard({ className = '' }) {
     })
     .filter((x) => x.total > 0)
 
-  // Last 7 days adherence, derived from history.
+  // Last 7 IST days adherence, from collapsed doses. A day is 100% when every dose
+  // that day was eventually taken (delays via snooze/reschedule don't break it).
   const streak = useMemo(() => {
-    const DAY = 86400000
     const letters = ['S', 'M', 'T', 'W', 'T', 'F', 'S']
-    const now = new Date()
+    const today = istCalendarDate()
     const out = []
     for (let i = 6; i >= 0; i--) {
-      const d = new Date(now.getTime() - i * DAY)
-      const start = new Date(d)
-      start.setHours(0, 0, 0, 0)
-      const end = start.getTime() + DAY
-      const entries = history.filter((e) => e.ts >= start.getTime() && e.ts < end)
+      const d = addDays(today, -i)
+      const entries = doses.filter((e) => e.ts && sameDay(istCalendarDate(e.ts), d))
       const total = entries.length
       const taken = entries.filter((e) => e.status === 'Taken').length
       const value = total ? Math.round((taken / total) * 100) : 0
       out.push({ day: letters[d.getDay()], value, total, tone: 'brand' })
     }
     return out
-  }, [history])
+  }, [doses])
 
   // Consecutive fully-adherent days ending today.
   const streakDays = useMemo(() => {

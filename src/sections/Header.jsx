@@ -29,7 +29,9 @@ export default function Header() {
   // ---- Bell expand/collapse notice animation ----
   const [msg, setMsg] = useState('')
   const [tone, setTone] = useState('brand')
-  const [expanded, setExpanded] = useState(false)
+  const [expanded, setExpanded] = useState(false) // desktop: sideways reveal
+  const [mDrop, setMDrop] = useState(false) // mobile: droplet dropped into view
+  const [mWide, setMWide] = useState(false) // mobile: expanded to show message
   const [mw, setMw] = useState(0)
   const msgRef = useRef(null)
 
@@ -37,9 +39,18 @@ export default function Header() {
     if (!notice) return
     setMsg(notice.message)
     setTone(notice.tone || 'brand')
+    const timers = []
+    // Desktop: expand sideways from the bell, then collapse.
     setExpanded(true)
-    const t = setTimeout(() => setExpanded(false), 2600)
-    return () => clearTimeout(t)
+    timers.push(setTimeout(() => setExpanded(false), 2600))
+    // Mobile water-drop: drop down first, then slowly expand to reveal the message;
+    // later collapse the width back to a droplet, then rise up. Each phase is a
+    // separate, gently-eased step so the motion stays smooth with no bounce/lag.
+    setMDrop(true)
+    timers.push(setTimeout(() => setMWide(true), 420)) // expand only after it has dropped
+    timers.push(setTimeout(() => setMWide(false), 2600)) // collapse the width
+    timers.push(setTimeout(() => setMDrop(false), 3060)) // then rise back up
+    return () => timers.forEach(clearTimeout)
   }, [notice])
 
   useLayoutEffect(() => {
@@ -97,25 +108,27 @@ export default function Header() {
             </span>
           </button>
 
-          {/* Mobile only: notice forms as a droplet under the bell, drops down, then
-              expands sideways to reveal the message. Never renders on desktop. */}
+          {/* Mobile only: notice forms as a droplet, drops down centered on screen,
+              then slowly expands to reveal the message, later collapses and rises
+              back up. Fixed + centered (independent of the bell). Desktop unaffected. */}
           {isMobile && (
-            <div className="pointer-events-none absolute right-2 top-full z-30 flex justify-end pt-1.5">
+            <div className="pointer-events-none fixed left-1/2 top-3 z-[60] flex -translate-x-1/2 justify-center">
               <div
-                className="flex h-8 items-center overflow-hidden rounded-2xl border border-line bg-white shadow-lg shadow-ink-900/10"
+                className="flex h-9 items-center justify-center overflow-hidden rounded-2xl border border-line bg-white shadow-xl shadow-ink-900/15"
                 style={{
-                  maxWidth: expanded ? mw + 10 : 20,
-                  opacity: expanded ? 1 : 0,
-                  transform: expanded ? 'translateY(0) scaleY(1)' : 'translateY(-14px) scaleY(0.4)',
-                  transformOrigin: 'top right',
-                  transition: expanded
-                    ? 'opacity 0.18s ease-out, transform 0.34s cubic-bezier(0.34, 1.56, 0.64, 1), max-width 0.46s cubic-bezier(0.22, 1, 0.36, 1) 0.16s'
-                    : 'opacity 0.22s ease-in 0.08s, transform 0.26s ease-in, max-width 0.28s ease-in',
+                  maxWidth: mWide ? mw + 10 : 34,
+                  opacity: mDrop ? 1 : 0,
+                  transform: mDrop ? 'translateY(0)' : 'translateY(-24px)',
+                  transition: [
+                    'opacity 0.34s ease',
+                    'transform 0.52s cubic-bezier(0.22, 1, 0.36, 1)',
+                    'max-width 0.6s cubic-bezier(0.22, 1, 0.36, 1)',
+                  ].join(', '),
                 }}
               >
                 <span ref={msgRef} className="flex items-center gap-1.5 whitespace-nowrap px-3">
                   <span className={'h-1.5 w-1.5 shrink-0 rounded-full ' + (toneDot[tone] || toneDot.brand)} />
-                  <span className="max-w-[62vw] truncate text-[12px] font-semibold text-ink-700">{msg}</span>
+                  <span className="max-w-[70vw] truncate text-[12px] font-semibold text-ink-700">{msg}</span>
                 </span>
               </div>
             </div>

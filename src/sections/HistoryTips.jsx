@@ -3,13 +3,15 @@ import { ChevronRight, Droplet, Clock, MoodFace, moodKey, MOOD_COLOR } from '../
 import { Card, SectionTitle, Illustration, userTone, EmptyState, LoadingState, PillGlyph, UserAvatar } from '../ui.jsx'
 import { tips } from '../data.js'
 import { useApp } from '../store.jsx'
+import { collapseDoseHistory } from '../time.js'
 
 export function HistoryCard({ className = '' }) {
   const { history, symptoms, openModal, usersById, dataLoading } = useApp()
 
-  // Merge dose logs and symptom logs into one time-sorted feed.
+  // Merge dose logs and symptom logs into one time-sorted feed. Dose rows are
+  // collapsed so a dose that was snoozed/rescheduled before being taken shows once.
   const feed = useMemo(() => {
-    const doses = history.map((h) => ({ ...h, kind: 'dose' }))
+    const doses = collapseDoseHistory(history).map((h) => ({ ...h, kind: 'dose' }))
     const syms = symptoms.map((s) => ({
       kind: 'symptom',
       id: 'sym-' + s.id,
