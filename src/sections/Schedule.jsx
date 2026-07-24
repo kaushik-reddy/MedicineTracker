@@ -1,6 +1,6 @@
 import { useState, useRef, useLayoutEffect, useMemo } from 'react'
 import { ChevronRight, Clock, CheckCircle, TrendingUp, Check, Close } from '../icons.jsx'
-import { Card, SectionTitle, Dropdown, toneSoft, MedGlyph, userTone, UserAvatar } from '../ui.jsx'
+import { Card, SectionTitle, Dropdown, toneSoft, MedGlyph, userTone, UserAvatar, LoadingState } from '../ui.jsx'
 import { useApp } from '../store.jsx'
 import { medActiveOn, istCalendarDate, addDays, sameDay, collapseDoseHistory } from '../time.js'
 
@@ -50,7 +50,7 @@ function Node({ state }) {
 }
 
 export function ScheduleCard({ className = '' }) {
-  const { schedule, scheduleTomorrow, nextDose, openModal, usersById, history } = useApp()
+  const { schedule, scheduleTomorrow, nextDose, openModal, usersById, history, dataLoading } = useApp()
   const today = istCalendarDate()
   const yesterday = addDays(today, -1)
   const dateForDay = (day) => (day === 'Tomorrow' ? addDays(today, 1) : day === 'Yesterday' ? yesterday : today)
@@ -77,6 +77,7 @@ export function ScheduleCard({ className = '' }) {
   }, [history, yesterday])
 
   const slots = buildSlots(scheduleYesterday, schedule, scheduleTomorrow)
+  const loading = dataLoading && schedule.length === 0 && scheduleYesterday.length === 0
 
   // The active node is today's next unmarked dose, else today's "done" card.
   let activeIndex = slots.findIndex((s) => s.day === 'Today' && s.type === 'dose' && !s.med.taken && !s.med.skipped)
@@ -111,7 +112,11 @@ export function ScheduleCard({ className = '' }) {
         <span className="shrink-0 text-[10px] font-bold text-ink-400">{fmtDate(today)}</span>
       </div>
 
-      <div ref={viewportRef} className="relative mt-3 flex-1 overflow-hidden">
+      {loading ? (
+        <LoadingState label="Loading schedule…" className="mt-3" />
+      ) : (
+        <>
+          <div ref={viewportRef} className="relative mt-3 flex-1 overflow-hidden">
         <div className="pointer-events-none absolute inset-y-0 left-0 z-20 w-8 bg-gradient-to-r from-white to-transparent" />
         <div className="pointer-events-none absolute inset-y-0 right-0 z-20 w-8 bg-gradient-to-l from-white to-transparent" />
 
@@ -235,13 +240,15 @@ export function ScheduleCard({ className = '' }) {
           View full schedule <ChevronRight className="h-3.5 w-3.5" />
         </button>
       </div>
+        </>
+      )}
     </Card>
   )
 }
 
 export function GlanceCard({ className = '' }) {
   const [range, setRange] = useState('Today')
-  const { glance, medications, users, history } = useApp()
+  const { glance, medications, users, history, dataLoading } = useApp()
 
   // Dose totals for the selected range (Today is live; others come from history).
   // History is collapsed to one entry per dose so snooze/reschedule don't inflate
@@ -276,6 +283,8 @@ export function GlanceCard({ className = '' }) {
     })
     .filter((x) => x.total > 0)
 
+  const loading = dataLoading && medications.length === 0 && history.length === 0
+
   return (
     <Card className={'flex flex-col p-4 ' + className}>
       <div className="flex items-center justify-between">
@@ -283,6 +292,9 @@ export function GlanceCard({ className = '' }) {
         <Dropdown options={['Today', 'Yesterday', 'This Week']} value={range} onChange={setRange} />
       </div>
 
+      {loading ? (
+        <LoadingState label="Loading today’s glance…" className="mt-2" />
+      ) : (
       <div className="mt-2 flex flex-1 flex-col justify-center gap-3">
         {/* Dose progress hero */}
         <div className="rounded-2xl bg-gradient-to-br from-brand-50 to-emerald-50/50 p-4">
@@ -322,7 +334,6 @@ export function GlanceCard({ className = '' }) {
             ))}
           </div>
         </div>
-      </div>
-    </Card>
+      </div>      )}    </Card>
   )
 }

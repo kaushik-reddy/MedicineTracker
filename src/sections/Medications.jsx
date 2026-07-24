@@ -125,7 +125,7 @@ export function MedsCard({ className = '' }) {
 
 export function AdherenceCard({ className = '' }) {
   const [range, setRange] = useState('This Week')
-  const { users, medications, history } = useApp()
+  const { users, medications, history, dataLoading } = useApp()
 
   // Adherence over the selected range, derived from the dose-log history.
   // Collapse repeated snooze/reschedule rows so each dose counts once, and a dose
@@ -192,6 +192,10 @@ export function AdherenceCard({ className = '' }) {
         <Dropdown options={['This Week', 'This Month', 'This Year']} value={range} onChange={setRange} />
       </div>
 
+      {dataLoading && medications.length === 0 && history.length === 0 ? (
+        <LoadingState label="Loading adherence…" className="mt-1" />
+      ) : (
+      <>
       <div className="mt-1 flex items-center gap-3">
         <div className="flex flex-col items-center">
           <AdherenceRing value={rangeStats.pct} />
@@ -236,6 +240,8 @@ export function AdherenceCard({ className = '' }) {
           ))}
         </div>
       </div>
+      </>
+      )}
     </Card>
   )
 }
