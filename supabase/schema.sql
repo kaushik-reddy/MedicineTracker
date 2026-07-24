@@ -215,6 +215,38 @@ create policy "symptoms: owner can read"  on public.symptoms for select using (a
 create policy "symptoms: owner can write" on public.symptoms for all using (auth.uid() = owner_id) with check (auth.uid() = owner_id);
 
 -- ---------------------------------------------------------------------------
+-- Daily health trackers (Water / Steps / Sleep)
+-- One row per (owner, kind, day). `value` holds the day's total in the tracker's
+-- native unit: water = millilitres, steps = step count, sleep = minutes.
+-- ---------------------------------------------------------------------------
+create table if not exists public.trackers (
+  id          uuid primary key default gen_random_uuid(),
+  owner_id    uuid not null default auth.uid() references auth.users (id) on delete cascade,
+  kind        text not null check (kind in ('water','steps','sleep')),
+  day         date not null,
+  value       integer not null default 0,
+  updated_at  timestamptz not null default now(),
+  unique (owner_id, kind, day)
+);
+
+-- Backfill columns on a pre-existing table (safe to re-run).
+alter table public.trackers add column if not exists owner_id   uuid not null default auth.uid() references auth.users (id) on delete cascade;
+alter table public.trackers add column if not exists kind       text not null default 'water';
+alter table public.trackers add column if not exists day        date not null default current_date;
+alter table public.trackers add column if not exists value      integer not null default 0;
+alter table public.trackers add column if not exists updated_at timestamptz not null default now();
+
+-- One row per (owner, kind, day) so client upserts can target the conflict.
+create unique index if not exists uq_trackers_owner_kind_day on public.trackers (owner_id, kind, day);
+create index if not exists idx_trackers_owner on public.trackers (owner_id);
+
+alter table public.trackers enable row level security;
+drop policy if exists "trackers: owner can read"  on public.trackers;
+drop policy if exists "trackers: owner can write" on public.trackers;
+create policy "trackers: owner can read"  on public.trackers for select using (auth.uid() = owner_id);
+create policy "trackers: owner can write" on public.trackers for all using (auth.uid() = owner_id) with check (auth.uid() = owner_id);
+
+-- ---------------------------------------------------------------------------
 -- Reload the PostgREST schema cache.
 -- Columns added above via `alter table ... add column` are NOT visible to the
 -- API (upserts silently drop them, e.g. a medication's `unit`) until PostgREST

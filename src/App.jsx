@@ -4,12 +4,13 @@ import { ScheduleCard, GlanceCard } from './sections/Schedule.jsx'
 import { MedsCard, AdherenceCard } from './sections/Medications.jsx'
 import { InventoryCard, QuickActionsCard } from './sections/Panels.jsx'
 import { HistoryCard } from './sections/HistoryTips.jsx'
+import { TrackersPanel } from './sections/Trackers.jsx'
 import { FooterBar } from './sections/FooterCTA.jsx'
 import { ModalLayer } from './sections/Modals.jsx'
 import { useFitScale, useIsMobile } from './useFitScale.js'
 
 const DESIGN_W = 1600
-const DESIGN_H = 1000
+const DESIGN_H = 1276
 
 // Mobile: cards stack in a single scrollable column with sensible fixed heights
 // so each card's internal flex/scroll regions behave exactly like on desktop.
@@ -28,6 +29,7 @@ function MobileApp() {
         <div className={cell('h-[300px]')}><InventoryCard className="h-full" /></div>
         <div className={cell('h-[300px]')}><QuickActionsCard className="h-full" /></div>
         <div className={cell('h-[300px]')}><HistoryCard className="h-full" /></div>
+        <TrackersPanel mobile className="shrink-0" />
         <FooterBar className="h-6 shrink-0" />
       </div>
       <ModalLayer />
@@ -71,6 +73,9 @@ export default function App() {
           <QuickActionsCard className="col-span-4" />
           <HistoryCard className="col-span-4" />
         </main>
+
+        {/* Health trackers strip (added below the frozen 3-row grid). */}
+        <TrackersPanel className="h-[264px] shrink-0" />
 
         <FooterBar className="h-6 shrink-0" />
       </div>

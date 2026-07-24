@@ -1,5 +1,17 @@
 import { createContext, useContext, useState, useCallback, useMemo, useRef, useEffect } from 'react'
-import { medications as medsSeed, inventory as invSeed, history as histSeed, users as usersSeed } from './data.js'
+import {
+  medications as medsSeed,
+  inventory as invSeed,
+  history as histSeed,
+  users as usersSeed,
+  symptoms as symptomsSeed,
+  water as waterSeed,
+  waterGoal as waterGoalSeed,
+  steps as stepsSeed,
+  stepsGoal as stepsGoalSeed,
+  sleep as sleepSeed,
+  sleepGoal as sleepGoalSeed,
+} from './data.js'
 import { timeAfterNow, istTimeLabel, istCalendarDate, addDays, medActiveOn, sameDay, dosesPerDay, remainingUnits, effectiveTime, isoDate } from './time.js'
 import {
   db,
@@ -17,6 +29,12 @@ const newId = () =>
   typeof crypto !== 'undefined' && crypto.randomUUID
     ? crypto.randomUUID()
     : `id-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`
+
+// Local YYYY-MM-DD key for today (matches how the water seed keys its rows).
+const todayWaterKey = (d = new Date()) => {
+  const p = (x) => String(x).padStart(2, '0')
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`
+}
 
 const AppCtx = createContext(null)
 export const useApp = () => useContext(AppCtx)
@@ -120,7 +138,13 @@ export function AppProvider({ children }) {
   const [inventory, setInventory] = useState(invSeed)
   const [history, setHistory] = useState(histSeed)
   const [users, setUsers] = useState(usersSeed)
-  const [symptoms, setSymptoms] = useState([])
+  const [symptoms, setSymptoms] = useState(symptomsSeed)
+  const [water, setWater] = useState(waterSeed)
+  const [waterGoal, setWaterGoal] = useState(waterGoalSeed)
+  const [steps, setSteps] = useState(stepsSeed)
+  const [stepsGoal, setStepsGoal] = useState(stepsGoalSeed)
+  const [sleep, setSleep] = useState(sleepSeed)
+  const [sleepGoal, setSleepGoal] = useState(sleepGoalSeed)
   const [modal, setModal] = useState(null)
   const [notice, setNotice] = useState(null)
   const [confirm, setConfirm] = useState(null)
@@ -141,6 +165,12 @@ export function AppProvider({ children }) {
   medicationsRef.current = medications
   const inventoryRef = useRef(inventory)
   inventoryRef.current = inventory
+  const waterRef = useRef(water)
+  waterRef.current = water
+  const stepsRef = useRef(steps)
+  stepsRef.current = steps
+  const sleepRef = useRef(sleep)
+  sleepRef.current = sleep
 
   // Track the auth session (real email/password login). Data is per-account and
   // roams across devices. When persistence is off, there is no auth to track.
@@ -169,6 +199,9 @@ export function AppProvider({ children }) {
       setInventory([])
       setHistory([])
       setSymptoms([])
+      setWater([])
+      setSteps([])
+      setSleep([])
       setDataLoading(false)
       return
     }
@@ -186,6 +219,9 @@ export function AppProvider({ children }) {
         setInventory(inv.next)
         setHistory(data.history)
         setSymptoms(data.symptoms ?? [])
+        setWater(data.water ?? [])
+        setSteps(data.steps ?? [])
+        setSleep(data.sleep ?? [])
         changed.forEach((m) => db.updateMedication(m.id, { taken: false, skipped: false }))
         inv.changed.forEach((it) => db.upsertInventory(it))
         stock.changed.forEach((m) => db.upsertMedication(m))
@@ -786,6 +822,44 @@ export function AppProvider({ children }) {
   // Most recent symptom entry (for the hero banner).
   const latestSymptom = useMemo(() => symptoms[0] || null, [symptoms])
 
+  // ---- Water tracker (local only) ----
+  // Today's total intake in ml, derived from the daily water log.
+  const waterToday = useMemo(() => {
+    const key = todayWaterKey()
+    return water.find((r) => r.date === key)?.ml || 0
+  }, [water])
+
+  // ---- Daily health trackers (Water / Steps / Sleep) ----
+  // Values are keyed per day; adds write through to Supabase (no-op when off).
+  // Reading the latest rows from a ref keeps the persisted total correct even
+  // though React defers the setState update.
+  const bumpTracker = (kind, field, ref, setter) => (amount) => {
+    const key = todayWaterKey()
+    const rows = ref.current
+    const idx = rows.findIndex((r) => r.date === key)
+    const cur = idx === -1 ? 0 : rows[idx][field]
+    const value = Math.max(0, cur + Math.round(Number(amount) || 0))
+    setter(idx === -1 ? [...rows, { date: key, [field]: value }] : rows.map((r, i) => (i === idx ? { ...r, [field]: value } : r)))
+    db.upsertTracker({ kind, date: key, value })
+  }
+
+  const addWater = useCallback(bumpTracker('water', 'ml', waterRef, setWater), [])
+  const changeWaterGoal = useCallback((ml) => setWaterGoal(Math.max(0, Math.round(Number(ml) || 0))), [])
+
+  const stepsToday = useMemo(() => {
+    const key = todayWaterKey()
+    return steps.find((r) => r.date === key)?.steps || 0
+  }, [steps])
+  const addSteps = useCallback(bumpTracker('steps', 'steps', stepsRef, setSteps), [])
+  const changeStepsGoal = useCallback((n) => setStepsGoal(Math.max(0, Math.round(Number(n) || 0))), [])
+
+  const sleepToday = useMemo(() => {
+    const key = todayWaterKey()
+    return sleep.find((r) => r.date === key)?.mins || 0
+  }, [sleep])
+  const addSleep = useCallback(bumpTracker('sleep', 'mins', sleepRef, setSleep), [])
+  const changeSleepGoal = useCallback((mins) => setSleepGoal(Math.max(0, Math.round(Number(mins) || 0))), [])
+
   const exportReport = useCallback(
     (format) => {
       let blob
@@ -815,6 +889,21 @@ export function AppProvider({ children }) {
     history,
     symptoms,
     latestSymptom,
+    water,
+    waterGoal,
+    waterToday,
+    addWater,
+    changeWaterGoal,
+    steps,
+    stepsGoal,
+    stepsToday,
+    addSteps,
+    changeStepsGoal,
+    sleep,
+    sleepGoal,
+    sleepToday,
+    addSleep,
+    changeSleepGoal,
     schedule,
     scheduleTomorrow,
     nextDose,

@@ -192,6 +192,9 @@ const rowToSymptom = (r) => ({
   mood: r.mood ?? undefined,
 })
 
+// Daily health trackers (water/steps/sleep) — one row per (kind, day).
+const FIELD_BY_KIND = { water: 'ml', steps: 'steps', sleep: 'mins' }
+
 // ---- Reads ----------------------------------------------------------------
 
 // Load everything the app needs in one shot. Returns null if persistence is off
@@ -200,24 +203,33 @@ export async function loadAll() {
   if (!supabase) return null
   const session = await getSession()
   if (!session) return null
-  const [members, meds, inv, logs, symptoms] = await Promise.all([
+  const [members, meds, inv, logs, symptoms, trackers] = await Promise.all([
     supabase.from('members').select('*').order('created_at', { ascending: true }),
     supabase.from('medications').select('*').order('created_at', { ascending: true }),
     supabase.from('inventory').select('*').order('created_at', { ascending: true }),
     supabase.from('dose_logs').select('*').order('logged_at', { ascending: false }).limit(600),
     supabase.from('symptoms').select('*').order('logged_at', { ascending: false }).limit(200),
+    supabase.from('trackers').select('*'),
   ])
-  const firstError = members.error || meds.error || inv.error || logs.error || symptoms.error
+  const firstError = members.error || meds.error || inv.error || logs.error || symptoms.error || trackers.error
   if (firstError) {
     console.warn('[supabase] load failed:', firstError.message)
     return null
   }
+  const trackerRows = trackers.data ?? []
+  const pickTracker = (kind) =>
+    trackerRows
+      .filter((r) => r.kind === kind)
+      .map((r) => ({ date: r.day, [FIELD_BY_KIND[kind]]: r.value }))
   return {
     users: (members.data ?? []).map(rowToMember),
     medications: (meds.data ?? []).map(rowToMed),
     inventory: (inv.data ?? []).map(rowToInv),
     history: (logs.data ?? []).map(rowToLog),
     symptoms: (symptoms.data ?? []).map(rowToSymptom),
+    water: pickTracker('water'),
+    steps: pickTracker('steps'),
+    sleep: pickTracker('sleep'),
   }
 }
 
@@ -278,5 +290,13 @@ export const db = {
     if (!supabase) return
     const { error } = await supabase.from('symptoms').insert(symptomToRow(entry))
     report('insert symptom', error)
+  },
+  // Upsert a day's tracker total (owner_id is filled by the column default).
+  async upsertTracker({ kind, date, value }) {
+    if (!supabase) return
+    const { error } = await supabase
+      .from('trackers')
+      .upsert({ kind, day: date, value }, { onConflict: 'owner_id,kind,day' })
+    report('upsert tracker', error)
   },
 }

@@ -192,6 +192,15 @@ export function Droplet({ className = '' }) {
   )
 }
 
+export function Footprints({ className = '' }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" {...base}>
+      <path d="M4 16v-2.4A2.6 2.6 0 0 1 9.2 13c0 1.6-.6 2.4-.6 4 0 1.2-.9 2-2.3 2S4 18.2 4 17v-1Z" />
+      <path d="M20 8v-.4A2.6 2.6 0 0 0 14.8 8c0 1.6.6 2.4.6 4 0 1.2.9 2 2.3 2s2.3-.8 2.3-2V8Z" />
+    </svg>
+  )
+}
+
 export function Close({ className = '' }) {
   return (
     <svg className={className} viewBox="0 0 24 24" {...base}>
