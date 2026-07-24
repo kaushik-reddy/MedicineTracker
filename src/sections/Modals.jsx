@@ -1746,24 +1746,33 @@ function HistoryLog() {
                     </span>
                   </div>
 
-                  {/* Audit timeline */}
-                  <div className="mt-2.5 flex items-center gap-2">
-                    <div className="flex items-center gap-1.5">
-                      <span className="h-2 w-2 rounded-full bg-ink-400" />
+                  {/* Audit timeline — shows the original schedule, every snooze/
+                      reschedule delay in order, then the final outcome. */}
+                  {h.steps && h.steps.length > 0 ? (
+                    <div className="mt-2.5 flex flex-wrap items-center gap-x-1.5 gap-y-1.5">
+                      <span className="h-2 w-2 shrink-0 rounded-full bg-ink-400" />
                       <span className="text-[10px] font-semibold text-ink-500">
                         Scheduled <span className="font-bold text-ink-700">{h.scheduled || h.time || '—'}</span>
                       </span>
-                    </div>
-                    <div className="h-px flex-1 bg-line" />
-                    <div className="flex items-center gap-1.5">
-                      <span className={'h-2 w-2 rounded-full ' + dotColor} />
+                      {h.steps.map((s, si) => (
+                        <span key={si} className="flex items-center gap-1.5">
+                          <ChevronRight className="h-3 w-3 shrink-0 text-ink-300" />
+                          <span
+                            className={
+                              'rounded-full px-1.5 py-0.5 text-[9px] font-bold ' +
+                              (s.status === 'Snoozed' ? 'bg-amber-50 text-warn-500' : 'bg-violet-50 text-accent-600')
+                            }
+                          >
+                            {s.status === 'Snoozed' ? 'Snoozed' : 'Moved'} → {s.to || '—'}
+                          </span>
+                        </span>
+                      ))}
+                      <ChevronRight className="h-3 w-3 shrink-0 text-ink-300" />
+                      <span className={'h-2 w-2 shrink-0 rounded-full ' + dotColor} />
                       <span className="text-[10px] font-semibold text-ink-500">
                         {h.status === 'Taken' ? (
                           <>
                             Taken <span className="font-bold text-brand-600">{h.marked || '—'}</span>
-                            {h.moves > 0 && (
-                              <span className="text-ink-400"> · after {h.moves} {h.moves === 1 ? 'delay' : 'delays'}</span>
-                            )}
                           </>
                         ) : h.status === 'Snoozed' ? (
                           <>
@@ -1778,7 +1787,37 @@ function HistoryLog() {
                         )}
                       </span>
                     </div>
-                  </div>
+                  ) : (
+                    <div className="mt-2.5 flex items-center gap-2">
+                      <div className="flex items-center gap-1.5">
+                        <span className="h-2 w-2 rounded-full bg-ink-400" />
+                        <span className="text-[10px] font-semibold text-ink-500">
+                          Scheduled <span className="font-bold text-ink-700">{h.scheduled || h.time || '—'}</span>
+                        </span>
+                      </div>
+                      <div className="h-px flex-1 bg-line" />
+                      <div className="flex items-center gap-1.5">
+                        <span className={'h-2 w-2 rounded-full ' + dotColor} />
+                        <span className="text-[10px] font-semibold text-ink-500">
+                          {h.status === 'Taken' ? (
+                            <>
+                              Taken <span className="font-bold text-brand-600">{h.marked || '—'}</span>
+                            </>
+                          ) : h.status === 'Snoozed' ? (
+                            <>
+                              Snoozed to <span className="font-bold text-warn-500">{h.marked || '—'}</span>
+                            </>
+                          ) : h.status === 'Rescheduled' ? (
+                            <>
+                              Moved to <span className="font-bold text-accent-600">{h.marked || '—'}</span>
+                            </>
+                          ) : (
+                            <span className="font-bold text-warn-500">{h.status}</span>
+                          )}
+                        </span>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )
             })}

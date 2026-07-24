@@ -170,6 +170,11 @@ export function collapseDoseHistory(history = []) {
       const takenEvt = all.find((x) => x.status === 'Taken')
       const resolved = terminal || last
       const moves = all.filter((x) => x.status === 'Snoozed' || x.status === 'Rescheduled').length
+      // Each snooze/reschedule step BEFORE the final state, in order, so the
+      // timeline can show the delays (the resolved event itself is excluded).
+      const steps = all
+        .filter((x) => (x.status === 'Snoozed' || x.status === 'Rescheduled') && x !== resolved)
+        .map((x) => ({ status: x.status, to: x.marked, ts: x.ts }))
       doses.push({
         ...resolved,
         id: resolved.id || first.id,
@@ -179,6 +184,7 @@ export function collapseDoseHistory(history = []) {
         marked: takenEvt ? takenEvt.marked : resolved.marked,
         status: resolved.status,
         moves, // how many times this dose was snoozed/rescheduled before resolving
+        steps, // ordered snooze/reschedule delays leading to the final status
       })
       buf = []
     }
