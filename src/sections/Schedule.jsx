@@ -88,13 +88,20 @@ export function ScheduleCard({ className = '' }) {
   const [vw, setVw] = useState(0)
   const [ready, setReady] = useState(false)
 
+  // Measure the viewport so the active node can be centered. Re-run when `loading`
+  // clears — while the spinner shows, the timeline (and its ref) isn't mounted yet,
+  // so the width must be measured once it actually renders, or centering breaks.
   useLayoutEffect(() => {
-    const measure = () => viewportRef.current && setVw(viewportRef.current.clientWidth)
+    const measure = () => {
+      if (viewportRef.current) {
+        setVw(viewportRef.current.clientWidth)
+        setReady(true)
+      }
+    }
     measure()
-    setReady(true)
     window.addEventListener('resize', measure)
     return () => window.removeEventListener('resize', measure)
-  }, [])
+  }, [loading])
 
   const step = CARD + GAP
   const offset = vw / 2 - (activeIndex * step + CARD / 2)
