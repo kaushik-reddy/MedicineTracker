@@ -247,6 +247,12 @@ export function GlanceCard({ className = '' }) {
   // History is collapsed to one entry per dose so snooze/reschedule don't inflate
   // totals — keeping this card consistent with the Adherence card.
   const doses = useMemo(() => collapseDoseHistory(history), [history])
+  // Today's still-due doses (not yet taken/skipped) — added to week totals so a
+  // pending dose counts toward the denominator, matching the Adherence card.
+  const pendingToday = useMemo(() => {
+    const today = istCalendarDate()
+    return medications.filter((m) => m.scheduledToday && medActiveOn(m, today) && !m.taken && !m.skipped).length
+  }, [medications])
   const stats = useMemo(() => {
     if (range === 'Today') return { taken: glance.takenCount, total: glance.total }
     if (range === 'Yesterday') {
@@ -256,8 +262,8 @@ export function GlanceCard({ className = '' }) {
     }
     const cutoff = Date.now() - 7 * 86400000
     const entries = doses.filter((e) => e.ts >= cutoff)
-    return { taken: entries.filter((e) => e.status === 'Taken').length, total: entries.length }
-  }, [range, glance, doses])
+    return { taken: entries.filter((e) => e.status === 'Taken').length, total: entries.length + pendingToday }
+  }, [range, glance, doses, pendingToday])
 
   const donePct = stats.total ? Math.round((stats.taken / stats.total) * 100) : 0
   const rangeLabel = range === 'Today' ? 'today' : range === 'Yesterday' ? 'yesterday' : 'this week'

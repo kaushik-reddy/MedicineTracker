@@ -133,13 +133,21 @@ export function AdherenceCard({ className = '' }) {
   const rangeDays = range === 'This Year' ? 365 : range === 'This Month' ? 30 : 7
   const rangeLabel = range === 'This Year' ? 'this year' : range === 'This Month' ? 'this month' : 'this week'
   const doses = useMemo(() => collapseDoseHistory(history), [history])
+  // Today's doses that are still due (added/scheduled but not yet taken or skipped).
+  // History only has logged doses, so these must be added to the denominator or a
+  // pending dose (e.g. a medicine you just added) wouldn't count — showing 6/6 when
+  // it should be 6/7.
+  const pendingToday = useMemo(() => {
+    const today = istCalendarDate()
+    return medications.filter((m) => m.scheduledToday && medActiveOn(m, today) && !m.taken && !m.skipped).length
+  }, [medications])
   const rangeStats = useMemo(() => {
     const cutoff = Date.now() - rangeDays * 86400000
     const entries = doses.filter((e) => e.ts >= cutoff)
-    const total = entries.length
     const taken = entries.filter((e) => e.status === 'Taken').length
+    const total = entries.length + pendingToday
     return { total, taken, pct: total ? Math.round((taken / total) * 100) : 0 }
-  }, [doses, rangeDays])
+  }, [doses, rangeDays, pendingToday])
 
   const perUser = users
     .map((u) => {
