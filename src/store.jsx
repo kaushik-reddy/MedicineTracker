@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useCallback, useMemo, useRef, useEffect } from 'react'
 import { medications as medsSeed, inventory as invSeed, history as histSeed, users as usersSeed } from './data.js'
-import { timeAfterNow, istTimeLabel, istCalendarDate, addDays, medActiveOn, sameDay } from './time.js'
+import { timeAfterNow, istTimeLabel, istCalendarDate, addDays, medActiveOn, sameDay, dosesPerDay, remainingUnits } from './time.js'
 import {
   db,
   loadAll,
@@ -79,6 +79,30 @@ function reconcileInventoryOwners(inventory, medications) {
   return { next, changed }
 }
 
+// One-time backfill: give medications created before unit-based stock tracking a
+// persistent baseline derived from their existing inventory snapshot, so their
+// stock starts depleting as doses are taken from now on. Runs only for meds that
+// don't already have a baseline (stockUnits), so it never re-anchors afterwards.
+function backfillStockBaseline(medications, inventory) {
+  const invByMed = {}
+  for (const it of inventory) if (it.medicationId) invByMed[it.medicationId] = it
+  const changed = []
+  const next = medications.map((m) => {
+    if (m.stockUnits != null) return m
+    const it = invByMed[m.id] || inventory.find((x) => x.name === m.name && x.user === m.user)
+    if (!it) return m
+    const perDay = dosesPerDay(m.frequency)
+    const units = perDay > 0 ? Math.max(0, Math.round((it.days ?? 0) * perDay)) : it.days ?? 0
+    // Anchor at 0 so the existing snapshot is treated as the entered amount and ALL
+    // doses already taken from history are subtracted from it (matching the user's
+    // mental model: units available − doses already taken).
+    const nm = { ...m, stockUnits: units, stockAnchor: 0 }
+    changed.push(nm)
+    return nm
+  })
+  return { next, changed }
+}
+
 export function AppProvider({ children }) {
   const [medications, setMedications] = useState(medsSeed)
   const [inventory, setInventory] = useState(invSeed)
@@ -143,13 +167,16 @@ export function AppProvider({ children }) {
         const { next, changed } = reconcileMedsForToday(data.medications, data.history)
         // Repair inventory rows whose member drifted from their medication.
         const inv = reconcileInventoryOwners(data.inventory, next)
+        // Give pre-existing meds a stock baseline so inventory becomes functional.
+        const stock = backfillStockBaseline(next, inv.next)
         setUsers(data.users)
-        setMedications(next)
+        setMedications(stock.next)
         setInventory(inv.next)
         setHistory(data.history)
         setSymptoms(data.symptoms ?? [])
         changed.forEach((m) => db.updateMedication(m.id, { taken: false, skipped: false }))
         inv.changed.forEach((it) => db.upsertInventory(it))
+        stock.changed.forEach((m) => db.upsertMedication(m))
       }
       setDataLoading(false)
     })
@@ -378,6 +405,21 @@ export function AppProvider({ children }) {
       )
       if (acted) {
         db.updateMedication(acted.id, { taken: false, skipped: false })
+        // Remove today's dose log for this med so stock (derived from Taken logs)
+        // and adherence recompute correctly when a dose is reverted to upcoming.
+        const today = istCalendarDate()
+        const victim = historyRef.current.find(
+          (h) =>
+            h.name === acted.name &&
+            h.user === acted.user &&
+            h.ts &&
+            sameDay(istCalendarDate(h.ts), today) &&
+            (h.status === 'Taken' || h.status === 'Skipped'),
+        )
+        if (victim) {
+          setHistory((h) => h.filter((e) => e.id !== victim.id))
+          db.deleteDoseLog(victim.id)
+        }
         showToast(`${acted.name} reverted to upcoming`, 'accent')
       }
     },
@@ -515,18 +557,35 @@ export function AppProvider({ children }) {
   )
 
   const restock = useCallback(
-    (invId, days = 30) => {
-      let nm = null
-      setInventory((inv) =>
-        inv.map((it) => {
-          if (it.id !== invId) return it
-          nm = { ...it, days: it.days + days, pct: 100 }
-          return nm
-        }),
-      )
-      if (nm) {
+    (invId, units = 30) => {
+      const item = inventoryRef.current.find((it) => it.id === invId)
+      if (!item) return
+      const add = Math.max(0, Math.round(Number(units) || 0))
+      const med =
+        medicationsRef.current.find((m) => m.id === item.medicationId) ||
+        medicationsRef.current.find((m) => m.name === item.name && m.user === item.user)
+      if (med) {
+        // Grow the persistent unit baseline by the added units and re-anchor so past
+        // doses don't count against the new stock. Remaining is derived from here.
+        const rem = remainingUnits(med, historyRef.current)
+        const nextUnits = (rem == null ? 0 : rem) + add
+        const updatedMed = { ...med, stockUnits: nextUnits, stockAnchor: Date.now() }
+        setMedications((meds) => meds.map((m) => (m.id === med.id ? updatedMed : m)))
+        db.upsertMedication(updatedMed)
+        // Keep the inventory snapshot in step (used as a fallback for legacy rows).
+        const perDay = dosesPerDay(updatedMed.frequency)
+        const days = perDay > 0 ? Math.max(0, Math.round(nextUnits / perDay)) : nextUnits
+        const detail = `${nextUnits} ${nextUnits === 1 ? 'unit' : 'units'} in stock`
+        const nm = { ...item, days, pct: 100, detail }
+        setInventory((inv) => inv.map((it) => (it.id === invId ? nm : it)))
         db.upsertInventory(nm)
-        showToast(`${nm.name} restocked · +${days} units`, 'brand')
+        showToast(`${med.name} restocked · +${add} units`, 'brand')
+      } else {
+        // Legacy inventory row with no linked medication — bump the stored snapshot.
+        const nm = { ...item, days: item.days + add, pct: 100 }
+        setInventory((inv) => inv.map((it) => (it.id === invId ? nm : it)))
+        db.upsertInventory(nm)
+        showToast(`${item.name} restocked · +${add} units`, 'brand')
       }
     },
     [showToast],
@@ -540,7 +599,18 @@ export function AppProvider({ children }) {
       const qty = Math.max(0, Math.round(Number(med.quantity) || 0))
       const perDay = med.frequency === 'Twice daily' ? 2 : med.frequency === 'Weekly' ? 1 / 7 : 1
       const days = perDay > 0 ? Math.max(0, Math.round(qty / perDay)) : qty
-      const record = { ...med, id, user: uid, label: hourLabel(med.time), taken: false, scheduledToday: true }
+      // Persist the entered units as the stock baseline; remaining is derived from
+      // this minus the doses taken from history (so it survives refreshes).
+      const record = {
+        ...med,
+        id,
+        user: uid,
+        label: hourLabel(med.time),
+        taken: false,
+        scheduledToday: true,
+        stockUnits: qty,
+        stockAnchor: Date.now(),
+      }
       delete record.quantity
       const invItem = {
         id: newId(),
@@ -572,12 +642,19 @@ export function AppProvider({ children }) {
       const current = medicationsRef.current.find((m) => m.id === id)
       if (!current) return
       const updated = { ...current, ...rest, label: hourLabel(rest.time ?? current.time) }
+      // Blank quantity leaves the stock baseline untouched; a number re-sets it and
+      // re-anchors so previously-taken doses don't count against the new baseline.
+      const qty = Number(quantity)
+      const setsStock = quantity !== '' && quantity != null && Number.isFinite(qty) && qty >= 0
+      if (setsStock) {
+        updated.stockUnits = qty
+        updated.stockAnchor = Date.now()
+      }
       setMedications((meds) => meds.map((m) => (m.id === id ? updated : m)))
       db.upsertMedication(updated)
 
-      const qty = Number(quantity)
-      if (quantity !== '' && quantity != null && Number.isFinite(qty) && qty >= 0) {
-        const perDay = updated.frequency === 'Twice daily' ? 2 : updated.frequency === 'Weekly' ? 1 / 7 : 1
+      if (setsStock) {
+        const perDay = dosesPerDay(updated.frequency)
         const days = perDay > 0 ? Math.max(0, Math.round(qty / perDay)) : qty
         const detail = `${qty} ${qty === 1 ? 'unit' : 'units'} in stock`
         // Match strictly by the medication link so a duplicate (different med id)

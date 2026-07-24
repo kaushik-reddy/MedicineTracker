@@ -121,8 +121,7 @@ export function emptyByLabel(days) {
   return formatShortDate(addDays(istCalendarDate(), days))
 }
 
-// ---- Dose-history collapsing -------------------------------------------------
-// A dose can produce several raw log rows in one day (e.g. Snoozed → Rescheduled →
+// ---- Dose-history collapsing -------------------------------------------------// A dose can produce several raw log rows in one day (e.g. Snoozed → Rescheduled →
 // Taken). For the timeline and every adherence/streak stat we want ONE entry per
 // logical dose, so repeated delays don't show as separate rows or inflate totals.
 // A dose is grouped by (member + medication + IST calendar day) and split into
@@ -192,4 +191,41 @@ export function medActiveOn(m, date) {
     if (!m.activeDays.includes(DAY_KEYS[date.getDay()])) return false // not a repeat day
   }
   return true
+}
+
+// ---- Stock / inventory (derived, refresh-safe) -------------------------------
+// How many doses/units a medication consumes per day, from its frequency.
+export function dosesPerDay(frequency) {
+  return frequency === 'Twice daily' ? 2 : frequency === 'Weekly' ? 1 / 7 : 1
+}
+
+// Units still on hand for a medication, derived from a persistent baseline
+// (the stock entered on the medication) minus the doses actually taken from the
+// history since that baseline was set. Being fully derived, it recomputes to the
+// same value on every refresh — no drift. Returns null when stock isn't tracked.
+export function remainingUnits(med, history = []) {
+  const full = Number(med?.stockUnits)
+  if (!Number.isFinite(full)) return null
+  const anchor = Number(med?.stockAnchor) || 0
+  let taken = 0
+  for (const h of history) {
+    if (h.status === 'Taken' && h.name === med.name && h.user === med.user && (h.ts || 0) >= anchor) taken++
+  }
+  return Math.max(0, full - taken)
+}
+
+// Full stock view for an inventory item: remaining units, days of supply and the
+// fill percentage for the progress bar. Falls back to the item's stored snapshot
+// for legacy rows that predate baseline tracking.
+export function stockView(item, med, history = []) {
+  const perDay = dosesPerDay(med?.frequency)
+  const rem = remainingUnits(med, history)
+  if (rem == null) {
+    // Legacy row: no baseline — show the stored snapshot as-is.
+    return { units: null, full: null, days: item?.days ?? 0, pct: item?.pct ?? 100, perDay }
+  }
+  const full = Number(med.stockUnits)
+  const days = perDay > 0 ? Math.max(0, Math.round(rem / perDay)) : rem
+  const pct = full > 0 ? Math.max(0, Math.min(100, Math.round((rem / full) * 100))) : 0
+  return { units: rem, full, days, pct, perDay }
 }

@@ -31,7 +31,7 @@ import {
 } from '../icons.jsx'
 import { PillGlyph, MedGlyph, UserAvatar } from '../ui.jsx'
 import { Calendar } from './ScheduleView.jsx'
-import { useNow, istCalendarDate, sameDay, addDays, formatLongDate, medActiveOn, istTimeLabel, emptyByLabel, collapseDoseHistory } from '../time.js'
+import { useNow, istCalendarDate, sameDay, addDays, formatLongDate, medActiveOn, istTimeLabel, emptyByLabel, collapseDoseHistory, dosesPerDay, remainingUnits, stockView } from '../time.js'
 import { DEFAULT_MED_INFO } from '../data.js'
 
 const field =
@@ -261,13 +261,17 @@ function LogDose() {
 }
 
 function MedicationForm({ mode = 'add', med = null }) {
-  const { addMedication, editMedication, closeModal, users, inventory } = useApp()
+  const { addMedication, editMedication, closeModal, users, inventory, history } = useApp()
   const isEdit = mode === 'edit'
   const info = med?.info || {}
-  // For edit, pre-fill the current stock so the user can see and adjust it.
+  // For edit, pre-fill the CURRENT remaining stock (baseline units − doses taken)
+  // so the number shown matches the inventory card and stays correct on refresh.
   const invItem = med ? inventory.find((it) => it.medicationId === med.id) : null
-  const perDayInit = med?.frequency === 'Twice daily' ? 2 : med?.frequency === 'Weekly' ? 1 / 7 : 1
-  const initialQty = isEdit && invItem ? String(Math.max(0, Math.round(invItem.days * perDayInit))) : ''
+  const perDayInit = dosesPerDay(med?.frequency)
+  const remInit = med ? remainingUnits(med, history) : null
+  const initialQty = isEdit
+    ? String(remInit != null ? remInit : invItem ? Math.max(0, Math.round(invItem.days * perDayInit)) : '')
+    : ''
   const [form, setForm] = useState({
     name: med?.name ?? '',
     dosage: med?.dosage ?? '',
@@ -1265,13 +1269,20 @@ function MedDetails() {
 }
 
 function Restock() {
-  const { restockId, inventory, restock, closeModal, usersById } = useApp()
+  const { restockId, inventory, medications, history, restock, closeModal, usersById } = useApp()
   const item = inventory.find((it) => it.id === restockId)
   const [qty, setQty] = useState(30)
   if (!item) return null
-  const low = item.days <= 10
+  const med =
+    medications.find((m) => m.id === item.medicationId) ||
+    medications.find((m) => m.name === item.name && m.user === item.user)
+  const view = stockView(item, med, history)
+  const perDay = view.perDay
+  const low = view.days <= 10
   const owner = usersById[item.user]
-  const newDays = item.days + qty
+  const curUnits = view.units != null ? view.units : Math.max(0, Math.round(view.days * perDay))
+  const newUnits = curUnits + qty
+  const newDays = perDay > 0 ? Math.max(0, Math.round(newUnits / perDay)) : newUnits
 
   return (
     <Shell icon={RestockIcon} tone="brand" title="Restock medication" subtitle="Top up this medication's stock">
@@ -1301,11 +1312,11 @@ function Restock() {
         </div>
         <div className="mt-3 grid grid-cols-2 gap-2">
           <div className="rounded-xl bg-white p-2 text-center">
-            <div className={'text-[16px] font-extrabold ' + (low ? 'text-warn-500' : 'text-ink-900')}>{item.days}</div>
+            <div className={'text-[16px] font-extrabold ' + (low ? 'text-warn-500' : 'text-ink-900')}>{view.days}</div>
             <div className="text-[9px] font-bold uppercase tracking-wide text-ink-400">Days left</div>
           </div>
           <div className="rounded-xl bg-white p-2 text-center">
-            <div className="text-[13px] font-extrabold text-ink-900">{emptyByLabel(item.days)}</div>
+            <div className="text-[13px] font-extrabold text-ink-900">{emptyByLabel(view.days)}</div>
             <div className="text-[9px] font-bold uppercase tracking-wide text-ink-400">Empty by</div>
           </div>
         </div>

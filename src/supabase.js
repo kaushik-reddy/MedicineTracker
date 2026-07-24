@@ -88,8 +88,14 @@ const medToRow = (m) => ({
   taken: !!m.taken,
   skipped: !!m.skipped,
   scheduled_today: m.scheduledToday !== false,
-  // Fold scheduling metadata into the existing jsonb column (no schema change).
-  info: { ...(m.info ?? {}), _startDate: m.startDate ?? null, _activeDays: m.activeDays ?? null },
+  // Fold scheduling + stock metadata into the existing jsonb column (no schema change).
+  info: {
+    ...(m.info ?? {}),
+    _startDate: m.startDate ?? null,
+    _activeDays: m.activeDays ?? null,
+    _stockUnits: m.stockUnits ?? null,
+    _stockAnchor: m.stockAnchor ?? null,
+  },
 })
 const rowToMed = (r) => ({
   id: r.id,
@@ -112,10 +118,12 @@ const rowToMed = (r) => ({
 
 // Split the persisted info blob back into details (`info`) + scheduling fields.
 function unpackInfo(raw) {
-  const { _startDate, _activeDays, ...info } = raw && typeof raw === 'object' ? raw : {}
+  const { _startDate, _activeDays, _stockUnits, _stockAnchor, ...info } = raw && typeof raw === 'object' ? raw : {}
   return {
     startDate: _startDate ?? undefined,
     activeDays: _activeDays ?? undefined,
+    stockUnits: _stockUnits ?? undefined,
+    stockAnchor: _stockAnchor ?? undefined,
     info: Object.keys(info).length ? info : undefined,
   }
 }
@@ -257,6 +265,11 @@ export const db = {
     if (!supabase) return
     const { error } = await supabase.from('dose_logs').insert(logToRow(entry))
     report('insert dose log', error)
+  },
+  async deleteDoseLog(id) {
+    if (!supabase) return
+    const { error } = await supabase.from('dose_logs').delete().eq('id', id)
+    report('delete dose log', error)
   },
   async insertSymptom(entry) {
     if (!supabase) return

@@ -2,7 +2,7 @@ import { ChevronRight, LogPlus, Pill, BellPlus, Download, RefreshCw, CheckCircle
 import { Card, SectionTitle, toneSoft, toneText, PillGlyph, UserAvatar, userTone, EmptyState, LoadingState } from '../ui.jsx'
 import { quickActions } from '../data.js'
 import { useApp } from '../store.jsx'
-import { emptyByLabel } from '../time.js'
+import { emptyByLabel, stockView } from '../time.js'
 
 const actionIcon = { log: LogPlus, pill: Pill, bellplus: BellPlus, download: Download, refill: Cart, note: Note, users: Users }
 const LOW_THRESHOLD = 10
@@ -70,8 +70,18 @@ function StockRing({ pct, tone, days }) {
 }
 
 export function InventoryCard({ className = '' }) {
-  const { inventory, openRestock, usersById, dataLoading } = useApp()
-  const lowCount = inventory.filter((it) => it.days <= LOW_THRESHOLD).length
+  const { inventory, medications, history, openRestock, usersById, dataLoading } = useApp()
+  // Remaining stock is derived live: baseline units (from the medication) minus the
+  // doses taken from history. This recomputes on every render/refresh, so counts and
+  // the progress bar always match "units entered − doses taken".
+  const rows = inventory.map((it) => {
+    const med =
+      medications.find((m) => m.id === it.medicationId) ||
+      medications.find((m) => m.name === it.name && m.user === it.user)
+    const view = stockView(it, med, history)
+    return { it, ...view }
+  })
+  const lowCount = rows.filter((r) => r.days <= LOW_THRESHOLD).length
 
   return (
     <Card className={'flex flex-col p-4 ' + className}>
@@ -93,8 +103,8 @@ export function InventoryCard({ className = '' }) {
           <EmptyState icon={Pill} title="No inventory yet" hint="Stock is tracked automatically when you add a medication." />
         ) : (
           <div className="space-y-2">
-            {inventory.map((it) => {
-              const low = it.days <= LOW_THRESHOLD
+            {rows.map(({ it, days, pct }) => {
+              const low = days <= LOW_THRESHOLD
               const u = usersById[it.user]
               return (
                 <div
@@ -119,7 +129,7 @@ export function InventoryCard({ className = '' }) {
                           </span>
                         )}
                         <span>· Empty by </span>
-                        <span className={low ? 'font-bold text-warn-500' : 'font-semibold text-ink-500'}>{emptyByLabel(it.days)}</span>
+                        <span className={low ? 'font-bold text-warn-500' : 'font-semibold text-ink-500'}>{emptyByLabel(days)}</span>
                       </div>
                     </div>
                     {low && (
@@ -132,12 +142,12 @@ export function InventoryCard({ className = '' }) {
                   {/* Bottom: bar (≈3/4) + days count & restock on the right */}
                   <div className="mt-2.5 flex items-center gap-3">
                     <div className="min-w-0 flex-[3]">
-                      <SegmentedBar pct={it.pct} low={low} tone={it.tone} />
+                      <SegmentedBar pct={pct} low={low} tone={it.tone} />
                     </div>
                     <div className="flex flex-1 items-center justify-end gap-2">
                       <div className="text-right leading-none">
                         <div className={'text-[15px] font-extrabold ' + (low ? 'text-warn-500' : 'text-ink-900')}>
-                          {it.days}
+                          {days}
                         </div>
                         <div className="text-[8px] font-semibold uppercase tracking-wide text-ink-400">days left</div>
                       </div>
@@ -166,12 +176,20 @@ export function InventoryCard({ className = '' }) {
 }
 
 export function QuickActionsCard({ className = '' }) {
-  const { openModal, openRestock, inventory, showToast } = useApp()
+  const { openModal, openRestock, inventory, medications, history, showToast } = useApp()
 
   const handle = (action) => {
     if (action === 'order-refill') {
-      const lowest = [...inventory].sort((a, b) => a.days - b.days)[0]
-      if (lowest) openRestock(lowest.id)
+      // Pick the item with the fewest days left, using derived remaining stock.
+      const lowest = [...inventory]
+        .map((it) => {
+          const med =
+            medications.find((m) => m.id === it.medicationId) ||
+            medications.find((m) => m.name === it.name && m.user === it.user)
+          return { it, days: stockView(it, med, history).days }
+        })
+        .sort((a, b) => a.days - b.days)[0]
+      if (lowest) openRestock(lowest.it.id)
       else showToast('Everything is well stocked', 'brand')
     } else {
       openModal(action)
