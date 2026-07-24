@@ -301,7 +301,7 @@ export function GlanceCard({ className = '' }) {
 
         {/* By member */}
         <div>
-          <div className="mb-1.5 text-[10px] font-bold uppercase tracking-wide text-ink-400">By member</div>
+          <div className="mb-1.5 text-[10px] font-bold uppercase tracking-wide text-ink-400">By member (today)</div>
           <div className="flex gap-2 overflow-x-auto no-scrollbar">
             {perUser.map(({ user, total, taken }) => (
               <div key={user.id} className="flex shrink-0 items-center gap-2 rounded-xl border border-line p-2">

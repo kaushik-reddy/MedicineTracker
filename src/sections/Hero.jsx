@@ -11,8 +11,8 @@ export function HeroCard({ className = '' }) {
   const hasData = glance.total > 0
   return (
     <Card className={'relative flex overflow-hidden ' + className}>
-      <div className="flex flex-1 items-center gap-1 py-3 pl-4 pr-2 sm:gap-2 sm:pl-5 sm:pr-3">
-        <div className="flex-1">
+      <div className="flex min-w-0 flex-1 items-center gap-1 py-3 pl-4 pr-2 sm:gap-2 sm:pl-5 sm:pr-3">
+        <div className="min-w-0 flex-1">
           <h1 className="text-[19px] font-extrabold leading-tight text-ink-900 sm:text-2xl">
             Good morning,
             <br />
@@ -52,7 +52,7 @@ export function HeroCard({ className = '' }) {
         <Illustration
           src="/assets/hero.png"
           label="3D Pill"
-          className="max-h-full w-[88px]! shrink-0 self-center object-contain sm:w-auto! sm:max-w-[240px]"
+          className="max-h-full w-[116px]! shrink-0 self-center object-contain sm:w-auto! sm:max-w-[240px]"
         />
       </div>
       <div className="pointer-events-none absolute -right-8 -top-8 h-32 w-32 rounded-full bg-brand-100/50 blur-2xl" />
