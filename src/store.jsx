@@ -97,6 +97,15 @@ export function AppProvider({ children }) {
   usersRef.current = usersById
   const userName = (id) => (usersRef.current[id] ? usersRef.current[id].name : '')
 
+  // Mirror the latest medications / inventory so callbacks can read current state
+  // synchronously. React only runs the *first* setState updater eagerly in an event
+  // handler, so a value captured inside a *second* updater (e.g. setInventory) is not
+  // available right after the call — reading from these refs avoids that pitfall.
+  const medicationsRef = useRef(medications)
+  medicationsRef.current = medications
+  const inventoryRef = useRef(inventory)
+  inventoryRef.current = inventory
+
   // Track the auth session (real email/password login). Data is per-account and
   // roams across devices. When persistence is off, there is no auth to track.
   useEffect(() => {
@@ -558,15 +567,12 @@ export function AppProvider({ children }) {
   const editMedication = useCallback(
     (id, fields) => {
       const { quantity, ...rest } = fields
-      let updated = null
-      setMedications((meds) =>
-        meds.map((m) => {
-          if (m.id !== id) return m
-          updated = { ...m, ...rest, label: hourLabel(rest.time ?? m.time) }
-          return updated
-        }),
-      )
-      if (!updated) return
+      // Read current medication from a ref (not inside a setState updater) so the
+      // persisted object is available synchronously for the db write below.
+      const current = medicationsRef.current.find((m) => m.id === id)
+      if (!current) return
+      const updated = { ...current, ...rest, label: hourLabel(rest.time ?? current.time) }
+      setMedications((meds) => meds.map((m) => (m.id === id ? updated : m)))
       db.upsertMedication(updated)
 
       const qty = Number(quantity)
@@ -574,32 +580,26 @@ export function AppProvider({ children }) {
         const perDay = updated.frequency === 'Twice daily' ? 2 : updated.frequency === 'Weekly' ? 1 / 7 : 1
         const days = perDay > 0 ? Math.max(0, Math.round(qty / perDay)) : qty
         const detail = `${qty} ${qty === 1 ? 'unit' : 'units'} in stock`
-        let invUpdated = null
-        setInventory((inv) => {
-          let found = false
-          // Match strictly by the medication link so a duplicate (different med id)
-          // can never be updated when its sibling is edited.
-          const next = inv.map((it) => {
-            if (it.medicationId !== id) return it
-            found = true
-            invUpdated = { ...it, name: updated.name, user: updated.user, days, pct: 100, detail }
-            return invUpdated
-          })
-          if (found) return next
-          // No linked stock row yet — create one for this medication only.
-          invUpdated = {
-            id: newId(),
-            medicationId: id,
-            name: updated.name,
-            detail,
-            days,
-            pct: 100,
-            tone: updated.tone,
-            user: updated.user,
-          }
-          return [...next, invUpdated]
-        })
-        if (invUpdated) db.upsertInventory(invUpdated)
+        // Match strictly by the medication link so a duplicate (different med id)
+        // can never be updated when its sibling is edited.
+        const existing = inventoryRef.current.find((it) => it.medicationId === id)
+        const invUpdated = existing
+          ? { ...existing, name: updated.name, user: updated.user, days, pct: 100, detail }
+          : {
+              // No linked stock row yet — create one for this medication only.
+              id: newId(),
+              medicationId: id,
+              name: updated.name,
+              detail,
+              days,
+              pct: 100,
+              tone: updated.tone,
+              user: updated.user,
+            }
+        setInventory((inv) =>
+          existing ? inv.map((it) => (it.medicationId === id ? invUpdated : it)) : [...inv, invUpdated],
+        )
+        db.upsertInventory(invUpdated)
       }
       showToast(`${updated.name} updated`, 'brand')
     },
