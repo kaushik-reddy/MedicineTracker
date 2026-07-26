@@ -46,7 +46,7 @@ function Ring({ pct, tone }) {
   return (
     <div className="relative h-[76px] w-[76px] shrink-0">
       <svg viewBox="0 0 72 72" className="h-full w-full -rotate-90">
-        <circle cx="36" cy="36" r={r} fill="none" stroke="#eef1f5" strokeWidth="7" />
+        <circle className="tracker-ring-track" cx="36" cy="36" r={r} fill="none" strokeWidth="7" />
         <circle
           cx="36"
           cy="36"
@@ -56,11 +56,11 @@ function Ring({ pct, tone }) {
           strokeWidth="7"
           strokeLinecap="round"
           strokeDasharray={`${(h / 100) * c} ${c}`}
-          className={tone.ring}
+          className={'tracker-ring-progress ' + tone.ring}
         />
       </svg>
       <div className="absolute inset-0 flex items-center justify-center">
-        <span className="text-[17px] font-extrabold text-ink-900">{pct}%</span>
+        <span className="tracker-ring-value text-[17px] font-extrabold">{pct}%</span>
       </div>
     </div>
   )
@@ -69,14 +69,14 @@ function Ring({ pct, tone }) {
 // Four stock-style change readouts (1D / 1W / 1M / 1Y) vs today.
 function Comparisons({ items }) {
   return (
-    <div className="grid grid-cols-4 gap-1">
+    <div className="tracker-comparisons grid grid-cols-4 gap-1">
       {items.map((c) => {
         const up = c.delta != null && c.delta > 0
         const down = c.delta != null && c.delta < 0
         const color = up ? 'text-brand-600' : down ? 'text-coral-500' : 'text-ink-400'
         return (
-          <div key={c.label} className="flex flex-col items-center rounded-lg bg-page py-1">
-            <span className="text-[8px] font-bold uppercase tracking-wide text-ink-400">{c.label}</span>
+          <div key={c.label} className="tracker-compare flex flex-col items-center rounded-lg py-1">
+            <span className="tracker-compare-label text-[8px] font-bold uppercase tracking-wide">{c.label}</span>
             <span className={'mt-0.5 text-[10px] font-extrabold leading-none ' + color}>
               {c.delta == null ? '—' : `${up ? '▲' : down ? '▼' : '•'}${Math.abs(c.delta)}%`}
             </span>
@@ -94,7 +94,7 @@ function QuickRow({ quick, undo, onAdd, tone }) {
         <button
           key={q.label}
           onClick={() => onAdd(q.amount)}
-          className={'flex-1 rounded-xl py-1.5 text-[11px] font-bold transition-colors ' + tone.btn}
+          className={'tracker-quick flex-1 rounded-xl py-1.5 text-[11px] font-bold transition-colors ' + tone.btn}
         >
           <span className="inline-flex items-center gap-0.5">
             <Plus className="h-3 w-3" />
@@ -105,7 +105,7 @@ function QuickRow({ quick, undo, onAdd, tone }) {
       <button
         onClick={() => onAdd(undo)}
         title="Undo"
-        className="grid h-[30px] w-8 shrink-0 place-items-center rounded-xl border border-line text-ink-400 transition-colors hover:bg-page hover:text-ink-700"
+        className="tracker-undo grid h-[30px] w-8 shrink-0 place-items-center rounded-xl border transition-colors"
       >
         <RotateCcw className="h-3.5 w-3.5" />
       </button>
@@ -133,11 +133,11 @@ function CustomAdd({ onAdd, unit, tone }) {
         onChange={(e) => setVal(e.target.value)}
         onKeyDown={(e) => e.key === 'Enter' && submit()}
         placeholder={`Custom ${unit}`}
-        className="no-spin min-w-0 flex-1 rounded-xl border border-line bg-white px-2.5 py-1.5 text-[11px] font-semibold text-ink-900 outline-none placeholder:text-ink-400 focus:border-ink-400"
+        className="tracker-input no-spin min-w-0 flex-1 rounded-xl border px-2.5 py-1.5 text-[11px] font-semibold outline-none"
       />
       <button
         onClick={submit}
-        className={'shrink-0 rounded-xl px-3 py-1.5 text-[11px] font-bold text-white transition-colors ' + tone.add}
+        className={'tracker-add shrink-0 rounded-xl px-3 py-1.5 text-[11px] font-bold transition-colors ' + tone.add}
       >
         Add
       </button>
@@ -148,21 +148,21 @@ function CustomAdd({ onAdd, unit, tone }) {
 function VitalCard({ icon: Icon, toneKey, title, pct, sub, badge, quick, undo, onAdd, unit, compare, mobile }) {
   const tone = TONES[toneKey] || TONES.sky
   return (
-    <Card className={'flex flex-col p-4 ' + (mobile ? '' : 'h-full')}>
+    <Card className={'vital-card vital-card--' + toneKey + ' flex flex-col p-4 ' + (mobile ? '' : 'h-full')}>
       <div className="flex items-center justify-between">
         <div className="flex min-w-0 items-center gap-2">
-          <span className={'grid h-7 w-7 shrink-0 place-items-center rounded-xl ' + tone.soft}>
+          <span className={'vital-icon grid h-7 w-7 shrink-0 place-items-center rounded-xl ' + tone.soft}>
             <Icon className="h-4 w-4" />
           </span>
-          <SectionTitle className="!text-[15px] truncate">{title}</SectionTitle>
+          <SectionTitle className="vital-title !text-[15px] truncate">{title}</SectionTitle>
         </div>
-        <span className={'shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold ' + tone.soft}>{badge}</span>
+        <span className={'vital-badge shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold ' + tone.soft}>{badge}</span>
       </div>
 
       <div className="mt-3 flex items-center gap-3">
         <Ring pct={pct} tone={tone} />
         <div className="min-w-0 flex-1">
-          <div className="text-[13px] font-extrabold text-ink-900">{sub}</div>
+          <div className="tracker-current text-[13px] font-extrabold">{sub}</div>
           <div className="mt-2">
             <Comparisons items={compare} />
           </div>

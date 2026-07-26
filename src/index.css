@@ -224,3 +224,125 @@ body {
   border-top-color: #5ce5aa;
 }
 
+/* Dark health trackers share the Next Dose surface while keeping distinct signals. */
+.vital-card {
+  --vital-accent: #2ed38f;
+  --vital-accent-soft: rgba(46, 211, 143, 0.12);
+  --vital-accent-border: rgba(46, 211, 143, 0.22);
+  border-color: rgba(90, 168, 137, 0.26) !important;
+  background:
+    radial-gradient(circle at 94% 8%, var(--vital-accent-soft), transparent 32%),
+    linear-gradient(145deg, #102d25 0%, #0a211b 100%) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    0 16px 34px -20px rgba(5, 32, 24, 0.75) !important;
+}
+
+.vital-card--sky {
+  --vital-accent: #38bdf8;
+  --vital-accent-soft: rgba(56, 189, 248, 0.12);
+  --vital-accent-border: rgba(56, 189, 248, 0.24);
+}
+
+.vital-card--accent {
+  --vital-accent: #a78bfa;
+  --vital-accent-soft: rgba(167, 139, 250, 0.13);
+  --vital-accent-border: rgba(167, 139, 250, 0.25);
+}
+
+.vital-title,
+.tracker-current,
+.tracker-ring-value {
+  color: #f2fff9 !important;
+}
+
+.tracker-current .text-ink-400 {
+  color: #8eaca1 !important;
+}
+
+.vital-icon,
+.vital-badge {
+  border: 1px solid var(--vital-accent-border);
+  background: var(--vital-accent-soft) !important;
+  color: var(--vital-accent) !important;
+}
+
+.tracker-ring-track {
+  stroke: rgba(187, 231, 214, 0.12);
+}
+
+.tracker-ring-progress {
+  color: var(--vital-accent) !important;
+  filter: drop-shadow(0 0 4px var(--vital-accent-soft));
+}
+
+.tracker-compare {
+  border: 1px solid rgba(187, 231, 214, 0.08);
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.tracker-compare-label {
+  color: #78998d;
+}
+
+.vital-card .tracker-compare .text-brand-600 {
+  color: #6ee7b7 !important;
+}
+
+.vital-card .tracker-compare .text-coral-500 {
+  color: #fda4af !important;
+}
+
+.vital-card .tracker-compare .text-ink-400 {
+  color: #78998d !important;
+}
+
+.tracker-quick {
+  border: 1px solid var(--vital-accent-border);
+  background: var(--vital-accent-soft) !important;
+  color: var(--vital-accent) !important;
+}
+
+.tracker-quick:hover {
+  background: color-mix(in srgb, var(--vital-accent) 19%, transparent) !important;
+}
+
+.tracker-undo {
+  border-color: rgba(187, 231, 214, 0.17);
+  background: rgba(255, 255, 255, 0.035);
+  color: #9bb9ae;
+}
+
+.tracker-undo:hover {
+  border-color: var(--vital-accent-border);
+  background: var(--vital-accent-soft);
+  color: var(--vital-accent);
+}
+
+.tracker-input {
+  border-color: rgba(187, 231, 214, 0.17);
+  background: rgba(2, 20, 14, 0.5);
+  color: #f2fff9;
+  color-scheme: dark;
+}
+
+.tracker-input::placeholder {
+  color: #718f84;
+}
+
+.vital-card .tracker-input:focus,
+.vital-card .tracker-input:focus-visible {
+  border-color: var(--vital-accent) !important;
+  box-shadow: 0 0 0 2px var(--vital-accent-soft);
+}
+
+.tracker-add {
+  background: var(--vital-accent) !important;
+  color: #06271c !important;
+  box-shadow: inset 0 0 0 1px rgba(238, 255, 249, 0.14);
+}
+
+.tracker-add:hover {
+  filter: brightness(1.1);
+}
+
