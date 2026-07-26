@@ -70,21 +70,21 @@ export function NextDoseCard({ className = '' }) {
     const loading = dataLoading && schedule.length === 0
     const allDone = schedule.length > 0
     return (
-      <Card className={'flex flex-col items-center justify-center p-4 text-center ' + className}>
+      <Card className={'next-dose-card flex flex-col items-center justify-center p-4 text-center ' + className}>
         {loading ? (
           <>
-            <span className="h-8 w-8 animate-spin rounded-full border-2 border-line border-t-brand-500" />
-            <div className="mt-3 text-[13px] font-semibold text-ink-400">Loading your next dose…</div>
+            <span className="next-dose-spinner h-8 w-8 animate-spin rounded-full border-2" />
+            <div className="next-dose-muted mt-3 text-[13px] font-semibold">Loading your next dose…</div>
           </>
         ) : (
           <>
-            <span className="grid h-12 w-12 place-items-center rounded-2xl bg-brand-50 text-brand-600">
+            <span className="next-dose-empty-icon grid h-12 w-12 place-items-center rounded-2xl">
               <CheckCircle className="h-7 w-7" />
             </span>
-            <div className="mt-3 text-[15px] font-extrabold text-ink-900">
+            <div className="next-dose-title mt-3 text-[15px] font-extrabold">
               {allDone ? 'All doses done!' : 'No doses scheduled'}
             </div>
-            <div className="mt-1 text-[12px] text-ink-500">
+            <div className="next-dose-muted mt-1 text-[12px]">
               {allDone ? "You're all caught up for today." : 'Add a medication to see your next dose here.'}
             </div>
           </>
@@ -107,36 +107,36 @@ export function NextDoseCard({ className = '' }) {
   }
 
   return (
-    <Card className={'relative flex flex-col p-4 ' + className}>
+    <Card className={'next-dose-card relative flex flex-col p-4 ' + className}>
       <div className="flex items-center justify-between">
-        <span className="text-[12px] font-semibold text-ink-500">Your Next Dose</span>
+        <span className="next-dose-eyebrow text-[12px] font-semibold">Your Next Dose</span>
         <span
           className={
-            'rounded-full px-2 py-0.5 text-[10px] font-bold ' +
-            (overdue ? 'bg-rose-50 text-coral-500' : 'bg-brand-50 text-brand-600')
+            'next-dose-status rounded-full px-2 py-0.5 text-[10px] font-bold ' +
+            (overdue ? 'next-dose-status--overdue' : 'next-dose-status--on-time')
           }
         >
           {overdue ? 'Overdue' : 'On time'}
         </span>
       </div>
 
-      <div className="mt-2 text-[26px] font-extrabold leading-none tracking-tight text-ink-900">{nextDose.time}</div>
-      <div className={'mt-1 text-[12px] font-semibold tabular-nums ' + (overdue ? 'text-coral-500' : 'text-ink-400')}>
+      <div className="next-dose-time mt-2 text-[26px] font-extrabold leading-none tracking-tight">{nextDose.time}</div>
+      <div className={'mt-1 text-[12px] font-semibold tabular-nums ' + (overdue ? 'next-dose-overdue' : 'next-dose-muted')}>
         {formatCountdown(nextDose.time, now)}
       </div>
 
-      <div className="my-2 h-px bg-line" />
+      <div className="next-dose-divider my-2 h-px" />
 
       <div className="flex items-center justify-between gap-2">
-        <div className="min-w-0 flex-1 truncate text-[14px] font-bold text-ink-900">{nextDose.name}</div>
-        <UserChip user={usersById[nextDose.user]} />
+        <div className="next-dose-title min-w-0 flex-1 truncate text-[14px] font-bold">{nextDose.name}</div>
+        <span className="next-dose-user"><UserChip user={usersById[nextDose.user]} /></span>
       </div>
-      <div className="truncate text-[12px] text-ink-500">{nextDose.detail}</div>
+      <div className="next-dose-muted truncate text-[12px]">{nextDose.detail}</div>
 
       <div className="mt-auto pt-3">
         <button
           onClick={() => requestConfirm({ kind: 'taken', medId: nextDose.id, fromTime: nextDose.time })}
-          className="flex w-full items-center justify-center gap-2 rounded-xl bg-brand-500 py-2.5 text-[13px] font-bold text-white hover:bg-brand-600 transition-colors"
+          className="next-dose-primary flex w-full items-center justify-center gap-2 rounded-xl py-2.5 text-[13px] font-bold transition-colors"
         >
           <CheckCircle className="h-4 w-4" />
           Mark as Taken
@@ -146,14 +146,14 @@ export function NextDoseCard({ className = '' }) {
           <div className="relative">
             <button
               onClick={() => setMenu(menu === 'snooze' ? null : 'snooze')}
-              className="flex w-full items-center justify-center gap-1 rounded-xl border border-line py-2 text-[11px] font-bold text-ink-600 hover:bg-page transition-colors"
+              className="next-dose-secondary flex w-full items-center justify-center gap-1 rounded-xl border py-2 text-[11px] font-bold transition-colors"
             >
               <Bell className="h-3.5 w-3.5" /> Snooze
             </button>
             {menu === 'snooze' && (
               <>
                 <div className="fixed inset-0 z-10" onClick={() => setMenu(null)} />
-                <div className="absolute bottom-full left-0 z-20 mb-1.5 w-28 overflow-hidden rounded-xl border border-line bg-white p-1 shadow-lg">
+                <div className="next-dose-menu absolute bottom-full left-0 z-20 mb-1.5 w-28 overflow-hidden rounded-xl border p-1 shadow-lg">
                   {snoozeOpts.map((o) => (
                     <button
                       key={o.mins}
@@ -167,7 +167,7 @@ export function NextDoseCard({ className = '' }) {
                           mins: o.mins,
                         })
                       }}
-                      className="block w-full rounded-lg px-2.5 py-1.5 text-left text-[12px] font-semibold text-ink-700 hover:bg-page"
+                      className="next-dose-menu-option block w-full rounded-lg px-2.5 py-1.5 text-left text-[12px] font-semibold"
                     >
                       {o.label}
                     </button>
@@ -179,7 +179,7 @@ export function NextDoseCard({ className = '' }) {
 
           <button
             onClick={() => requestConfirm({ kind: 'skip', medId: nextDose.id, fromTime: nextDose.time })}
-            className="flex w-full items-center justify-center gap-1 rounded-xl border border-line py-2 text-[11px] font-bold text-ink-600 hover:bg-page transition-colors"
+            className="next-dose-secondary flex w-full items-center justify-center gap-1 rounded-xl border py-2 text-[11px] font-bold transition-colors"
           >
             <SkipForward className="h-3.5 w-3.5" /> Skip
           </button>
@@ -187,20 +187,20 @@ export function NextDoseCard({ className = '' }) {
           <div className="relative">
             <button
               onClick={openReschedule}
-              className="flex w-full items-center justify-center gap-1 rounded-xl border border-line py-2 text-[11px] font-bold text-ink-600 hover:bg-page transition-colors"
+              className="next-dose-secondary flex w-full items-center justify-center gap-1 rounded-xl border py-2 text-[11px] font-bold transition-colors"
             >
               <RefreshCw className="h-3.5 w-3.5" /> Move
             </button>
             {menu === 'reschedule' && (
               <>
                 <div className="fixed inset-0 z-10" onClick={() => setMenu(null)} />
-                <div className="absolute bottom-full right-0 z-20 mb-1.5 w-40 rounded-xl border border-line bg-white p-2 shadow-lg">
-                  <div className="text-[10px] font-semibold text-ink-500">New time (IST)</div>
+                <div className="next-dose-menu absolute bottom-full right-0 z-20 mb-1.5 w-40 rounded-xl border p-2 shadow-lg">
+                  <div className="next-dose-muted text-[10px] font-semibold">New time (IST)</div>
                   <input
                     value={reTime}
                     onChange={(e) => setReTime(e.target.value)}
                     placeholder={istTimeLabel(now)}
-                    className="mt-1 w-full rounded-lg border border-line px-2 py-1.5 text-[12px] font-medium text-ink-900 outline-none focus:border-brand-400"
+                    className="next-dose-input mt-1 w-full rounded-lg border px-2 py-1.5 text-[12px] font-medium outline-none"
                   />
                   <button
                     onClick={() => {
@@ -208,7 +208,7 @@ export function NextDoseCard({ className = '' }) {
                       setMenu(null)
                       if (t) requestConfirm({ kind: 'move', medId: nextDose.id, fromTime: nextDose.time, toTime: t })
                     }}
-                    className="mt-1.5 w-full rounded-lg bg-brand-500 py-1.5 text-[11px] font-bold text-white hover:bg-brand-600 transition-colors"
+                    className="next-dose-primary mt-1.5 w-full rounded-lg py-1.5 text-[11px] font-bold transition-colors"
                   >
                     Reschedule
                   </button>
