@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
-import { ChevronRight, Droplet, Footprints, Moon, Clock, MoodFace, moodKey, MOOD_COLOR } from '../icons.jsx'
-import { Card, SectionTitle, Illustration, userTone, EmptyState, LoadingState, PillGlyph } from '../ui.jsx'
+import { ChevronRight, Droplet, Footprints, Moon, Clock, Check, MoodFace, moodKey, MOOD_COLOR } from '../icons.jsx'
+import { Card, SectionTitle, Illustration, userTone, EmptyState, LoadingState, PillGlyph, UserAvatar } from '../ui.jsx'
 import { tips } from '../data.js'
 import { useApp } from '../store.jsx'
 import { collapseDoseHistory } from '../time.js'
@@ -98,101 +98,77 @@ export function HistoryCard({ className = '' }) {
         ) : feed.length === 0 ? (
           <EmptyState icon={Clock} title="No history yet" hint="Doses you take or skip and symptoms you log will show up here." />
         ) : (
-          <div className="space-y-0.5">
+          <div className="space-y-3">
             {feed.map((h) => {
               const u = usersById[h.user]
               const uTone = (userTone[u?.tone] || userTone.brand).text
               const time = shortTime(h.ts)
 
+              // Build the chat avatar, sender name and message bubble text per entry kind.
+              let avatar
+              let sender
+              let message
+              let msgTone = 'text-ink-700'
+
               if (h.kind === 'tracker') {
                 const t = TRK[h.tkind]
                 const Icon = t.icon
                 const up = h.amount > 0
-                return (
-                  <div
-                    key={h.id}
-                    className="flex items-start gap-3 rounded-2xl px-1.5 py-2 hover:bg-page/70 transition-colors"
-                  >
-                    <span className={'grid h-10 w-10 shrink-0 place-items-center rounded-full ' + t.chip}>
-                      <Icon className="h-5 w-5" />
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-baseline justify-between gap-2">
-                        <span className="truncate text-[13px] font-bold text-ink-900">{t.label}</span>
-                        <span className="shrink-0 text-[11px] font-medium text-ink-400">{time}</span>
-                      </div>
-                      <p className="mt-0.5 line-clamp-2 text-[11px] leading-snug text-ink-500">
-                        <span className={'font-bold ' + t.tone}>
-                          {up ? '+' : '−'}
-                          {trkAmount(h.tkind, h.amount)}
-                        </span>{' '}
-                        · {trkTotal(h.tkind, h.total)}
-                      </p>
-                    </div>
-                  </div>
-                )
-              }
-
-              if (h.kind === 'symptom') {
-                return (
-                  <div
-                    key={h.id}
-                    className="flex items-start gap-3 rounded-2xl px-1.5 py-2 hover:bg-page/70 transition-colors"
-                  >
-                    <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-violet-50">
-                      <MoodFace mood={h.mood} className={'h-6 w-6 ' + (MOOD_COLOR[moodKey(h.mood)] || 'text-accent-500')} />
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-baseline justify-between gap-2">
-                        <span className="truncate text-[13px] font-bold text-ink-900">{h.name}</span>
-                        <span className="shrink-0 text-[11px] font-medium text-ink-400">{time}</span>
-                      </div>
-                      <p className="mt-0.5 line-clamp-2 text-[11px] leading-snug text-ink-500">
-                        <span className={'font-bold ' + (sevTone[h.severity] || 'text-accent-600')}>
-                          {h.severity || 'Mood'}
-                        </span>
-                        {u && (
-                          <>
-                            {' · logged by '}
-                            <span className={'font-bold ' + uTone}>{u.name}</span>
-                          </>
-                        )}
-                      </p>
-                    </div>
-                  </div>
-                )
-              }
-
-              const moved = h.status === 'Snoozed' || h.status === 'Rescheduled'
-              return (
-                <div
-                  key={h.id}
-                  className="flex items-start gap-3 rounded-2xl px-1.5 py-2 hover:bg-page/70 transition-colors"
-                >
-                  <span className="grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-full border border-line bg-white">
-                    <PillGlyph tone={h.tone} className="h-6 w-6" />
+                avatar = (
+                  <span className={'grid h-8 w-8 shrink-0 place-items-center rounded-full ' + t.chip}>
+                    <Icon className="h-4 w-4" />
                   </span>
+                )
+                sender = t.label
+                message = `${up ? '+' : '−'}${trkAmount(h.tkind, h.amount)} · ${trkTotal(h.tkind, h.total)}`
+                msgTone = t.tone
+              } else if (h.kind === 'symptom') {
+                avatar = u ? (
+                  <UserAvatar user={u} className="h-8 w-8 text-[11px]" />
+                ) : (
+                  <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-violet-50">
+                    <MoodFace mood={h.mood} className={'h-5 w-5 ' + (MOOD_COLOR[moodKey(h.mood)] || 'text-accent-500')} />
+                  </span>
+                )
+                sender = u ? u.name : 'Symptom'
+                message = `Logged ${h.name}${h.severity ? ' — ' + h.severity : ''}`
+                msgTone = sevTone[h.severity] || 'text-accent-600'
+              } else {
+                const moved = h.status === 'Snoozed' || h.status === 'Rescheduled'
+                avatar = u ? (
+                  <UserAvatar user={u} className="h-8 w-8 text-[11px]" />
+                ) : (
+                  <span className="grid h-8 w-8 shrink-0 place-items-center overflow-hidden rounded-full border border-line bg-white">
+                    <PillGlyph tone={h.tone} className="h-5 w-5" />
+                  </span>
+                )
+                sender = u ? u.name : h.name
+                const verb =
+                  { Taken: 'Took', Skipped: 'Skipped', Missed: 'Missed', Snoozed: 'Snoozed', Rescheduled: 'Rescheduled' }[
+                    h.status
+                  ] || h.status
+                const label = `${h.name}${h.dose ? ' ' + h.dose : ''}`
+                message =
+                  moved && h.scheduled && h.marked
+                    ? `${verb} ${label} · ${h.scheduled} → ${h.marked}`
+                    : `${verb} ${label}`
+                msgTone = statusTone[h.status] || 'text-ink-700'
+              }
+
+              return (
+                <div key={h.id} className="flex items-start gap-2">
+                  {avatar}
                   <div className="min-w-0 flex-1">
-                    <div className="flex items-baseline justify-between gap-2">
-                      <span className="truncate text-[13px] font-bold text-ink-900">
-                        {h.name}
-                        {h.dose && <span className="ml-1 font-medium text-ink-400">{h.dose}</span>}
+                    <div className="flex items-center gap-1">
+                      <span className={'truncate text-[12px] font-bold ' + (u ? uTone : 'text-ink-900')}>{sender}</span>
+                      <span className="grid h-3.5 w-3.5 shrink-0 place-items-center rounded-full bg-sky-500 text-white">
+                        <Check className="h-2.5 w-2.5" />
                       </span>
-                      <span className="shrink-0 text-[11px] font-medium text-ink-400">{time}</span>
+                      <span className="ml-auto shrink-0 text-[10px] font-medium text-ink-400">{time}</span>
                     </div>
-                    <p className="mt-0.5 line-clamp-2 text-[11px] leading-snug text-ink-500">
-                      <span className={'font-bold ' + (statusTone[h.status] || 'text-warn-500')}>{h.status}</span>
-                      {moved && h.scheduled && h.marked ? (
-                        <> {` · ${h.scheduled} → ${h.marked}`}</>
-                      ) : (
-                        u && (
-                          <>
-                            {' · by '}
-                            <span className={'font-bold ' + uTone}>{u.name}</span>
-                          </>
-                        )
-                      )}
-                    </p>
+                    <div className="mt-1 w-fit max-w-full rounded-2xl rounded-tl-sm bg-page px-3 py-2 text-[11px] leading-snug">
+                      <span className={'font-semibold ' + msgTone}>{message}</span>
+                    </div>
                   </div>
                 </div>
               )
