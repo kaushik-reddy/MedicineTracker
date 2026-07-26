@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
 import { ChevronRight, Droplet, Footprints, Moon, Clock, MoodFace, moodKey, MOOD_COLOR } from '../icons.jsx'
-import { Card, SectionTitle, Illustration, userTone, EmptyState, LoadingState, PillGlyph, UserAvatar } from '../ui.jsx'
+import { Card, SectionTitle, Illustration, userTone, EmptyState, LoadingState, PillGlyph } from '../ui.jsx'
 import { tips } from '../data.js'
 import { useApp } from '../store.jsx'
 import { collapseDoseHistory } from '../time.js'
@@ -39,25 +39,25 @@ export function HistoryCard({ className = '' }) {
     return [...doses, ...syms, ...trk].sort((a, b) => (b.ts || 0) - (a.ts || 0))
   }, [history, symptoms, trackerEvents])
 
-  const sevBadge = {
-    Mild: 'bg-brand-50 text-brand-600',
-    Moderate: 'bg-amber-50 text-warn-500',
-    Severe: 'bg-rose-50 text-coral-500',
+  const statusTone = {
+    Taken: 'text-brand-600',
+    Skipped: 'text-warn-500',
+    Missed: 'text-coral-500',
+    Snoozed: 'text-warn-500',
+    Rescheduled: 'text-accent-600',
   }
 
-  const statusBadge = {
-    Taken: 'bg-brand-50 text-brand-600',
-    Skipped: 'bg-amber-50 text-warn-500',
-    Missed: 'bg-rose-50 text-coral-500',
-    Snoozed: 'bg-amber-50 text-warn-500',
-    Rescheduled: 'bg-violet-50 text-accent-600',
+  const sevTone = {
+    Mild: 'text-brand-600',
+    Moderate: 'text-warn-500',
+    Severe: 'text-coral-500',
   }
 
   // Per-tracker presentation for the feed rows.
   const TRK = {
-    water: { icon: Droplet, label: 'Water', chip: 'bg-sky-50 text-sky-600', badge: 'bg-sky-50 text-sky-600' },
-    steps: { icon: Footprints, label: 'Steps', chip: 'bg-brand-50 text-brand-600', badge: 'bg-brand-50 text-brand-600' },
-    sleep: { icon: Moon, label: 'Sleep', chip: 'bg-violet-50 text-accent-600', badge: 'bg-violet-50 text-accent-600' },
+    water: { icon: Droplet, label: 'Water', chip: 'bg-sky-50 text-sky-600', tone: 'text-sky-600' },
+    steps: { icon: Footprints, label: 'Steps', chip: 'bg-brand-50 text-brand-600', tone: 'text-brand-600' },
+    sleep: { icon: Moon, label: 'Sleep', chip: 'bg-violet-50 text-accent-600', tone: 'text-accent-600' },
   }
   const trkAmount = (kind, n) => {
     const a = Math.abs(n)
@@ -70,6 +70,15 @@ export function HistoryCard({ className = '' }) {
     if (kind === 'steps') return `${t.toLocaleString()} steps today`
     return `${Math.floor(t / 60)}h ${t % 60}m today`
   }
+
+  // Short chat-style timestamp, e.g. "1:20pm".
+  const shortTime = (ts) =>
+    ts
+      ? new Date(ts)
+          .toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
+          .toLowerCase()
+          .replace(/\s/g, '')
+      : ''
 
   return (
     <Card className={'flex flex-col p-4 ' + className}>
@@ -89,10 +98,12 @@ export function HistoryCard({ className = '' }) {
         ) : feed.length === 0 ? (
           <EmptyState icon={Clock} title="No history yet" hint="Doses you take or skip and symptoms you log will show up here." />
         ) : (
-          <div className="space-y-1.5">
+          <div className="space-y-0.5">
             {feed.map((h) => {
               const u = usersById[h.user]
               const uTone = (userTone[u?.tone] || userTone.brand).text
+              const time = shortTime(h.ts)
+
               if (h.kind === 'tracker') {
                 const t = TRK[h.tkind]
                 const Icon = t.icon
@@ -100,89 +111,89 @@ export function HistoryCard({ className = '' }) {
                 return (
                   <div
                     key={h.id}
-                    className="flex items-center gap-2.5 rounded-xl border border-line/60 bg-white py-2 pl-2 pr-2.5"
+                    className="flex items-start gap-3 rounded-2xl px-1.5 py-2 hover:bg-page/70 transition-colors"
                   >
-                    <span className={'grid h-8 w-8 shrink-0 place-items-center rounded-lg ' + t.chip}>
-                      <Icon className="h-4 w-4" />
+                    <span className={'grid h-10 w-10 shrink-0 place-items-center rounded-full ' + t.chip}>
+                      <Icon className="h-5 w-5" />
                     </span>
                     <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-1.5">
-                        <span className="truncate text-[12px] font-bold text-ink-900">{t.label}</span>
-                        <span className="shrink-0 text-[10px] font-medium text-ink-400">{trkTotal(h.tkind, h.total)}</span>
+                      <div className="flex items-baseline justify-between gap-2">
+                        <span className="truncate text-[13px] font-bold text-ink-900">{t.label}</span>
+                        <span className="shrink-0 text-[11px] font-medium text-ink-400">{time}</span>
                       </div>
-                      <div className="truncate text-[10px] text-ink-400">{h.date}</div>
+                      <p className="mt-0.5 line-clamp-2 text-[11px] leading-snug text-ink-500">
+                        <span className={'font-bold ' + t.tone}>
+                          {up ? '+' : '−'}
+                          {trkAmount(h.tkind, h.amount)}
+                        </span>{' '}
+                        · {trkTotal(h.tkind, h.total)}
+                      </p>
                     </div>
-                    <span className={'shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold ' + t.badge}>
-                      {up ? '+' : '−'}
-                      {trkAmount(h.tkind, h.amount)}
-                    </span>
                   </div>
                 )
               }
+
               if (h.kind === 'symptom') {
                 return (
                   <div
                     key={h.id}
-                    className="flex items-center gap-2.5 rounded-xl border border-line/60 bg-white py-2 pl-2 pr-2.5"
+                    className="flex items-start gap-3 rounded-2xl px-1.5 py-2 hover:bg-page/70 transition-colors"
                   >
-                    <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-violet-50">
-                      <MoodFace mood={h.mood} className={'h-5 w-5 ' + (MOOD_COLOR[moodKey(h.mood)] || 'text-accent-500')} />
+                    <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-violet-50">
+                      <MoodFace mood={h.mood} className={'h-6 w-6 ' + (MOOD_COLOR[moodKey(h.mood)] || 'text-accent-500')} />
                     </span>
                     <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-1.5">
-                        <span className="truncate text-[12px] font-bold text-ink-900">{h.name}</span>
-                        {u && (
-                          <span className={'inline-flex shrink-0 items-center gap-1 text-[10px] font-bold ' + uTone}>
-                            <UserAvatar user={u} className="h-3.5 w-3.5 text-[7px]" />
-                            {u.name}
-                          </span>
-                        )}
+                      <div className="flex items-baseline justify-between gap-2">
+                        <span className="truncate text-[13px] font-bold text-ink-900">{h.name}</span>
+                        <span className="shrink-0 text-[11px] font-medium text-ink-400">{time}</span>
                       </div>
-                      <div className="truncate text-[10px] text-ink-400">{h.date}</div>
+                      <p className="mt-0.5 line-clamp-2 text-[11px] leading-snug text-ink-500">
+                        <span className={'font-bold ' + (sevTone[h.severity] || 'text-accent-600')}>
+                          {h.severity || 'Mood'}
+                        </span>
+                        {u && (
+                          <>
+                            {' · logged by '}
+                            <span className={'font-bold ' + uTone}>{u.name}</span>
+                          </>
+                        )}
+                      </p>
                     </div>
-                    <span
-                      className={
-                        'shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold ' +
-                        (sevBadge[h.severity] || 'bg-violet-50 text-accent-600')
-                      }
-                    >
-                      {h.severity || 'Mood'}
-                    </span>
                   </div>
                 )
               }
+
               const moved = h.status === 'Snoozed' || h.status === 'Rescheduled'
               return (
                 <div
                   key={h.id}
-                  className="flex items-center gap-2.5 rounded-xl border border-line/60 bg-white py-2 pl-2 pr-2.5"
+                  className="flex items-start gap-3 rounded-2xl px-1.5 py-2 hover:bg-page/70 transition-colors"
                 >
-                  <span className="grid h-8 w-8 shrink-0 place-items-center overflow-hidden rounded-lg border border-line bg-white">
-                    <PillGlyph tone={h.tone} className="h-5 w-5" />
+                  <span className="grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-full border border-line bg-white">
+                    <PillGlyph tone={h.tone} className="h-6 w-6" />
                   </span>
                   <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-1.5">
-                      <span className="truncate text-[12px] font-bold text-ink-900">{h.name}</span>
-                      {h.dose && <span className="shrink-0 text-[10px] font-medium text-ink-400">{h.dose}</span>}
-                      {u && (
-                        <span className={'inline-flex shrink-0 items-center gap-1 text-[10px] font-bold ' + uTone}>
-                          <UserAvatar user={u} className="h-3.5 w-3.5 text-[7px]" />
-                          {u.name}
-                        </span>
+                    <div className="flex items-baseline justify-between gap-2">
+                      <span className="truncate text-[13px] font-bold text-ink-900">
+                        {h.name}
+                        {h.dose && <span className="ml-1 font-medium text-ink-400">{h.dose}</span>}
+                      </span>
+                      <span className="shrink-0 text-[11px] font-medium text-ink-400">{time}</span>
+                    </div>
+                    <p className="mt-0.5 line-clamp-2 text-[11px] leading-snug text-ink-500">
+                      <span className={'font-bold ' + (statusTone[h.status] || 'text-warn-500')}>{h.status}</span>
+                      {moved && h.scheduled && h.marked ? (
+                        <> {` · ${h.scheduled} → ${h.marked}`}</>
+                      ) : (
+                        u && (
+                          <>
+                            {' · by '}
+                            <span className={'font-bold ' + uTone}>{u.name}</span>
+                          </>
+                        )
                       )}
-                    </div>
-                    <div className="truncate text-[10px] text-ink-400">
-                      {moved && h.scheduled && h.marked ? `${h.scheduled} → ${h.marked}` : h.date}
-                    </div>
+                    </p>
                   </div>
-                  <span
-                    className={
-                      'shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold ' +
-                      (statusBadge[h.status] || 'bg-amber-50 text-warn-500')
-                    }
-                  >
-                    {h.status}
-                  </span>
                 </div>
               )
             })}
