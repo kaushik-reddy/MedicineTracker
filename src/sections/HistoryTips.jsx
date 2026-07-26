@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
 import { ChevronRight, Droplet, Footprints, Moon, Clock, Check, MoodFace, moodKey, MOOD_COLOR } from '../icons.jsx'
-import { Card, SectionTitle, Illustration, userTone, EmptyState, LoadingState, PillGlyph, UserAvatar } from '../ui.jsx'
+import { Card, SectionTitle, Illustration, EmptyState, LoadingState, PillGlyph, UserAvatar } from '../ui.jsx'
 import { tips } from '../data.js'
 import { useApp } from '../store.jsx'
 import { collapseDoseHistory } from '../time.js'
@@ -39,25 +39,11 @@ export function HistoryCard({ className = '' }) {
     return [...doses, ...syms, ...trk].sort((a, b) => (b.ts || 0) - (a.ts || 0))
   }, [history, symptoms, trackerEvents])
 
-  const statusTone = {
-    Taken: 'text-brand-600',
-    Skipped: 'text-warn-500',
-    Missed: 'text-coral-500',
-    Snoozed: 'text-warn-500',
-    Rescheduled: 'text-accent-600',
-  }
-
-  const sevTone = {
-    Mild: 'text-brand-600',
-    Moderate: 'text-warn-500',
-    Severe: 'text-coral-500',
-  }
-
   // Per-tracker presentation for the feed rows.
   const TRK = {
-    water: { icon: Droplet, label: 'Water', chip: 'bg-sky-50 text-sky-600', tone: 'text-sky-600' },
-    steps: { icon: Footprints, label: 'Steps', chip: 'bg-brand-50 text-brand-600', tone: 'text-brand-600' },
-    sleep: { icon: Moon, label: 'Sleep', chip: 'bg-violet-50 text-accent-600', tone: 'text-accent-600' },
+    water: { icon: Droplet, label: 'Water', chip: 'bg-sky-50 text-sky-600' },
+    steps: { icon: Footprints, label: 'Steps', chip: 'bg-brand-50 text-brand-600' },
+    sleep: { icon: Moon, label: 'Sleep', chip: 'bg-violet-50 text-accent-600' },
   }
   const trkAmount = (kind, n) => {
     const a = Math.abs(n)
@@ -101,14 +87,12 @@ export function HistoryCard({ className = '' }) {
           <div className="space-y-3">
             {feed.map((h) => {
               const u = usersById[h.user]
-              const uTone = (userTone[u?.tone] || userTone.brand).text
               const time = shortTime(h.ts)
 
               // Build the chat avatar, sender name and message bubble text per entry kind.
               let avatar
               let sender
               let message
-              let msgTone = 'text-ink-700'
 
               if (h.kind === 'tracker') {
                 const t = TRK[h.tkind]
@@ -120,8 +104,10 @@ export function HistoryCard({ className = '' }) {
                   </span>
                 )
                 sender = t.label
-                message = `${up ? '+' : '−'}${trkAmount(h.tkind, h.amount)} · ${trkTotal(h.tkind, h.total)}`
-                msgTone = t.tone
+                message = `${up ? 'Added' : 'Removed'} ${trkAmount(h.tkind, h.amount)} ${t.label.toLowerCase()}. Total ${trkTotal(
+                  h.tkind,
+                  h.total,
+                )}.`
               } else if (h.kind === 'symptom') {
                 avatar = u ? (
                   <UserAvatar user={u} className="h-8 w-8 text-[11px]" />
@@ -131,8 +117,7 @@ export function HistoryCard({ className = '' }) {
                   </span>
                 )
                 sender = u ? u.name : 'Symptom'
-                message = `Logged ${h.name}${h.severity ? ' — ' + h.severity : ''}`
-                msgTone = sevTone[h.severity] || 'text-accent-600'
+                message = `Logged ${h.name}${h.severity ? ', ' + h.severity.toLowerCase() + ' severity' : ''}.`
               } else {
                 const moved = h.status === 'Snoozed' || h.status === 'Rescheduled'
                 avatar = u ? (
@@ -150,9 +135,8 @@ export function HistoryCard({ className = '' }) {
                 const label = `${h.name}${h.dose ? ' ' + h.dose : ''}`
                 message =
                   moved && h.scheduled && h.marked
-                    ? `${verb} ${label} · ${h.scheduled} → ${h.marked}`
-                    : `${verb} ${label}`
-                msgTone = statusTone[h.status] || 'text-ink-700'
+                    ? `${verb} ${label} — moved from ${h.scheduled} to ${h.marked}.`
+                    : `${verb} ${label}.`
               }
 
               return (
@@ -160,14 +144,14 @@ export function HistoryCard({ className = '' }) {
                   {avatar}
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-1">
-                      <span className={'truncate text-[12px] font-bold ' + (u ? uTone : 'text-ink-900')}>{sender}</span>
+                      <span className="truncate text-[12px] font-bold text-ink-900">{sender}</span>
                       <span className="grid h-3.5 w-3.5 shrink-0 place-items-center rounded-full bg-sky-500 text-white">
                         <Check className="h-2.5 w-2.5" />
                       </span>
                       <span className="ml-auto shrink-0 text-[10px] font-medium text-ink-400">{time}</span>
                     </div>
-                    <div className="mt-1 w-fit max-w-full rounded-2xl rounded-tl-sm bg-page px-3 py-2 text-[11px] leading-snug">
-                      <span className={'font-semibold ' + msgTone}>{message}</span>
+                    <div className="mt-1 inline-block max-w-[88%] rounded-2xl rounded-tl-sm bg-page px-3.5 py-2 text-[12px] leading-snug text-ink-800">
+                      {message}
                     </div>
                   </div>
                 </div>
